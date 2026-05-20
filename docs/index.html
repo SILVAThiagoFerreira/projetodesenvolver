@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Projeto Desenvolver - Flyrock</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Projeto Desenvolver - Flyrock</h1>
+      <p>Análise local no navegador para planos de fogo, monitoramento, calibração Terrock e raios de segurança.</p>
+    </div>
+    <span class="badge">GitHub Pages</span>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>1. Dados</h2>
+      <div class="grid">
+        <label>Planos de fogo (.xlsx)<input id="blastFile" type="file" accept=".xlsx,.xls" /></label>
+        <label>Monitoramento (.xlsx)<input id="monitoringFile" type="file" accept=".xlsx,.xls" /></label>
+      </div>
+      <div class="grid compact">
+        <label>Método K
+          <select id="kMethod">
+            <option value="median">Mediana</option>
+            <option value="mean">Média</option>
+            <option value="p75">Percentil 75</option>
+            <option value="p90">Percentil 90</option>
+            <option value="p95">Percentil 95</option>
+          </select>
+        </label>
+        <label>Fator equipamentos<input id="equipmentFactor" type="number" value="2" min="1" step="0.1" /></label>
+        <label>Fator pessoas<input id="peopleFactor" type="number" value="4" min="1" step="0.1" /></label>
+      </div>
+      <button id="runBtn">Processar</button>
+      <p class="note">Os arquivos são lidos no seu navegador. Nenhum dado é enviado para servidor.</p>
+    </section>
+
+    <section class="metrics">
+      <div><strong id="events">0</strong><span>eventos</span></div>
+      <div><strong id="match">0%</strong><span>match</span></div>
+      <div><strong id="kGlobal">-</strong><span>K global</span></div>
+      <div><strong id="invalid">0</strong><span>inconsistências</span></div>
+    </section>
+
+    <section class="panel">
+      <h2>2. Resultados</h2>
+      <div class="split">
+        <canvas id="obsPredChart" height="260"></canvas>
+        <canvas id="kChart" height="260"></canvas>
+      </div>
+      <h3>Raios de segurança</h3>
+      <div id="safetyTable"></div>
+      <h3>Simulação inversa para pessoas: 600 m e 500 m</h3>
+      <div id="inverseTable"></div>
+    </section>
+
+    <section class="panel">
+      <h2>3. Exportações</h2>
+      <div class="actions">
+        <button id="downloadCsv" disabled>Baixar base modelagem CSV</button>
+        <button id="downloadReport" disabled>Baixar relatório HTML</button>
+      </div>
+    </section>
+
+    <section class="disclaimer">
+      <strong>Aviso técnico:</strong> esta ferramenta apoia análise, rastreabilidade e simulação. Os resultados dependem da qualidade histórica, devem ser recalibrados continuamente e não autorizam desmontes sem responsável técnico habilitado.
+    </section>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>

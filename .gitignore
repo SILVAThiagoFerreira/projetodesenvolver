@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.pyc
+*.egg-info/
+reports/outputs/*
+data/processed/*
+!data/processed/.gitkeep
+!reports/outputs/.gitkeep

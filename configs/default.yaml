@@ -1,0 +1,37 @@
+project:
+  name: "Modelo de Previsão de Flyrock"
+  mine_name: "Pequena Mina Vale"
+  language: "pt-BR"
+files:
+  blast_plan_path: "data/raw/Apendice_I_Planos_de_fogo.xlsx"
+  monitoring_path: "data/raw/Apendice_II_Banco_de_dados_monitoramento.xlsx"
+  report_template_path: "reports/templates/Template - Relatório.docx"
+model:
+  gravity: 9.80665
+  k_calibration_method: "median"
+  group_by_lithology: true
+  use_real_stemming: true
+  use_real_charge: true
+  default_angle_when_missing: null
+  prediction_percentile: 95
+safety:
+  equipment_factor: 2
+  people_factor: 4
+  target_people_radius_m: [600, 500]
+outliers:
+  method: "iqr"
+  iqr_multiplier: 1.5
+  zscore_threshold: 3.0
+  remove_outliers: false
+  flag_outliers: true
+simulation:
+  n_monte_carlo: 10000
+  random_seed: 42
+  stemming_range_m: {min: 2.0, max: 6.0, step: 0.1}
+  charge_reduction_percent: {min: 0, max: 40, step: 5}
+  angle_range_degrees: {min: 5, max: 85, step: 5}
+report:
+  output_formats: ["html", "pdf", "docx"]
+  include_charts: true
+  include_data_quality_section: true
+  include_engineering_disclaimer: true

@@ -1,0 +1,13 @@
+:root{--ink:#172026;--muted:#5b6770;--line:#d7dde2;--brand:#007e7a;--bg:#f5f7f8;--warn:#fff5d6}
+*{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink)}
+.topbar{display:flex;justify-content:space-between;gap:24px;align-items:center;background:#003c46;color:white;padding:28px 36px}
+h1{margin:0 0 6px;font-size:30px} h2{margin:0 0 16px;font-size:21px} h3{margin:22px 0 10px;font-size:16px}.topbar p{margin:0;color:#d8eeee}
+.badge{border:1px solid #9be0db;padding:6px 10px;border-radius:4px;color:#d8eeee;white-space:nowrap}
+main{max-width:1180px;margin:24px auto;padding:0 18px}.panel{background:white;border:1px solid var(--line);border-radius:8px;padding:20px;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.grid.compact{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:14px}
+label{display:grid;gap:6px;font-weight:700;font-size:13px;color:#33414a} input,select{font:inherit;padding:9px;border:1px solid var(--line);border-radius:6px;background:white}
+button{background:var(--brand);border:0;color:white;border-radius:6px;padding:10px 14px;font-weight:700;margin-top:14px;cursor:pointer}button:disabled{background:#9ba8af;cursor:not-allowed}
+.note{color:var(--muted);font-size:13px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}.metrics div{background:white;border:1px solid var(--line);border-radius:8px;padding:16px}.metrics strong{display:block;font-size:26px}.metrics span{color:var(--muted);font-size:13px}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:18px}table{border-collapse:collapse;width:100%;background:white}th,td{border:1px solid var(--line);padding:7px;font-size:12px;text-align:left}th{background:#edf3f4}
+.actions{display:flex;gap:12px;flex-wrap:wrap}.disclaimer{background:var(--warn);border-left:5px solid #c58500;padding:14px;margin:20px 0;border-radius:4px}
+@media(max-width:800px){.topbar{display:block;padding:22px}.grid,.grid.compact,.metrics,.split{grid-template-columns:1fr}h1{font-size:24px}}

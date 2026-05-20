@@ -1,0 +1,11 @@
+project:
+  name: "Modelo de Previsão de Flyrock"
+  mine_name: "Pequena Mina Vale"
+  language: "pt-BR"
+model:
+  k_calibration_method: "percentile"
+  prediction_percentile: 95
+safety:
+  equipment_factor: 2
+  people_factor: 4
+  target_people_radius_m: [600, 500]
