@@ -5,8 +5,13 @@ let contour = [];
 let rasterStats = null;
 let rasterPreview = null;
 let rasterBounds = null;
+let orthoPreview = null;
+let orthoBounds = null;
 let topoLines = [];
 let currentRadius = NaN;
+let viewBounds = null;
+let isDragging = false;
+let dragStart = null;
 let charts = [];
 let reportHtml = "";
 
@@ -149,21 +154,27 @@ function drawMap(){
   const canvas=document.getElementById("mapCanvas"), ctx=canvas.getContext("2d");
   ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle="#f7faf9"; ctx.fillRect(0,0,canvas.width,canvas.height);
   const cst=polygonStats(contour), [cx,cy]=centroid(contour), radius=Number.isFinite(currentRadius)?currentRadius:0, pad=42;
-  let minX=cst?Math.min(cst.min_x,cx-radius):0, maxX=cst?Math.max(cst.max_x,cx+radius):100, minY=cst?Math.min(cst.min_y,cy-radius):0, maxY=cst?Math.max(cst.max_y,cy+radius):100;
-  if(rasterBounds && !cst){minX=rasterBounds.minX; maxX=rasterBounds.maxX; minY=rasterBounds.minY; maxY=rasterBounds.maxY;}
+  const baseBounds = getInitialBounds();
+  if(!viewBounds) viewBounds = baseBounds;
+  let {minX,maxX,minY,maxY}=viewBounds;
   const sx=(canvas.width-2*pad)/(maxX-minX||1), sy=(canvas.height-2*pad)/(maxY-minY||1), s=Math.min(sx,sy);
   const px=x=>pad+(x-minX)*s, py=y=>canvas.height-pad-(y-minY)*s;
+  const wx=screenX=>minX+(screenX-pad)/s, wy=screenY=>minY+(canvas.height-pad-screenY)/s;
   ctx.strokeStyle="#d7e2df"; ctx.lineWidth=1;
   for(let gx=Math.ceil(minX/50)*50;gx<=maxX;gx+=50){ctx.beginPath();ctx.moveTo(px(gx),py(minY));ctx.lineTo(px(gx),py(maxY));ctx.stroke();}
   for(let gy=Math.ceil(minY/50)*50;gy<=maxY;gy+=50){ctx.beginPath();ctx.moveTo(px(minX),py(gy));ctx.lineTo(px(maxX),py(gy));ctx.stroke();}
-  if(rasterPreview && rasterBounds){
-    const x=px(rasterBounds.minX), y=py(rasterBounds.maxY), w=(rasterBounds.maxX-rasterBounds.minX)*s, h=(rasterBounds.maxY-rasterBounds.minY)*s;
-    ctx.globalAlpha=.5; ctx.drawImage(rasterPreview,x,y,w,h); ctx.globalAlpha=1;
+  if(orthoPreview && orthoBounds && document.getElementById("showOrtho").checked){
+    drawRaster(ctx,orthoPreview,orthoBounds,px,py,s,.92);
   }
-  ctx.strokeStyle="rgba(50,78,82,.55)"; ctx.lineWidth=1;
-  topoLines.forEach(seg=>{ctx.beginPath();ctx.moveTo(px(seg[0][0]),py(seg[0][1]));ctx.lineTo(px(seg[1][0]),py(seg[1][1]));ctx.stroke();});
+  if(rasterPreview && rasterBounds){
+    drawRaster(ctx,rasterPreview,rasterBounds,px,py,s,document.getElementById("showOrtho").checked ? .22 : .65);
+  }
+  if(document.getElementById("showTopo").checked){
+    ctx.strokeStyle="rgba(20,50,55,.72)"; ctx.lineWidth=1;
+    topoLines.forEach(seg=>{ctx.beginPath();ctx.moveTo(px(seg[0][0]),py(seg[0][1]));ctx.lineTo(px(seg[1][0]),py(seg[1][1]));ctx.stroke();});
+  }
   if(!contour.length) return;
-  if(radius>0){
+  if(radius>0 && document.getElementById("showRadius").checked){
     ctx.beginPath(); ctx.arc(px(cx),py(cy),radius*s,0,Math.PI*2);
     ctx.fillStyle="rgba(118,188,33,.09)"; ctx.fill(); ctx.strokeStyle="#76bc21"; ctx.lineWidth=3; ctx.setLineDash([10,6]); ctx.stroke(); ctx.setLineDash([]);
     const eq=n(document.getElementById("equipmentFactor").value), pe=n(document.getElementById("peopleFactor").value), equipmentRadius=radius*(eq/pe);
@@ -177,6 +188,40 @@ function drawMap(){
   ctx.beginPath(); ctx.arc(px(cx),py(cy),4,0,Math.PI*2); ctx.fillStyle="#003c46"; ctx.fill();
   ctx.fillStyle="#003c46"; ctx.font="bold 13px Arial"; ctx.fillText(`Raio pessoas: ${fmt(currentRadius)} m`, px(cx)+10, py(cy)-10);
   ctx.font="12px Arial"; ctx.fillText(`Poligonal do desmonte`, px(cx)+10, py(cy)+8);
+  drawMap.lastTransform={px,py,wx,wy,s,pad};
+}
+
+function drawRaster(ctx,img,bounds,px,py,s,alpha){
+  const x=px(bounds.minX), y=py(bounds.maxY), w=(bounds.maxX-bounds.minX)*s, h=(bounds.maxY-bounds.minY)*s;
+  ctx.globalAlpha=alpha; ctx.drawImage(img,x,y,w,h); ctx.globalAlpha=1;
+}
+
+function getInitialBounds(){
+  const cst=polygonStats(contour), [cx,cy]=centroid(contour), radius=Number.isFinite(currentRadius)?currentRadius:0;
+  if(cst){
+    const margin=Math.max(40,radius*1.15);
+    return {minX:Math.min(cst.min_x,cx-margin),maxX:Math.max(cst.max_x,cx+margin),minY:Math.min(cst.min_y,cy-margin),maxY:Math.max(cst.max_y,cy+margin)};
+  }
+  if(orthoBounds) return {...orthoBounds};
+  if(rasterBounds) return {...rasterBounds};
+  return {minX:0,maxX:100,minY:0,maxY:100};
+}
+
+function zoomView(factor,screenX=null,screenY=null){
+  if(!viewBounds) viewBounds=getInitialBounds();
+  const canvas=document.getElementById("mapCanvas"), t=drawMap.lastTransform;
+  const cx=t&&screenX!==null?t.wx(screenX):(viewBounds.minX+viewBounds.maxX)/2;
+  const cy=t&&screenY!==null?t.wy(screenY):(viewBounds.minY+viewBounds.maxY)/2;
+  const w=(viewBounds.maxX-viewBounds.minX)*factor, h=(viewBounds.maxY-viewBounds.minY)*factor;
+  viewBounds={minX:cx-w/2,maxX:cx+w/2,minY:cy-h/2,maxY:cy+h/2};
+  drawMap();
+}
+
+function panView(dx,dy){
+  const t=drawMap.lastTransform; if(!t||!viewBounds) return;
+  const worldDx=-dx/t.s, worldDy=dy/t.s;
+  viewBounds={minX:viewBounds.minX+worldDx,maxX:viewBounds.maxX+worldDx,minY:viewBounds.minY+worldDy,maxY:viewBounds.maxY+worldDy};
+  drawMap();
 }
 
 function renderSpatialStats(){
@@ -189,22 +234,24 @@ function renderSpatialStats(){
 
 async function readGeoTiff(file){
   const arrayBuffer=await file.arrayBuffer();
-  await readGeoTiffBuffer(arrayBuffer);
+  await readGeoTiffBuffer(arrayBuffer, "surface");
 }
 
-async function readGeoTiffBuffer(arrayBuffer){
+async function readGeoTiffBuffer(arrayBuffer, kind="surface"){
   const tiff=await GeoTIFF.fromArrayBuffer(arrayBuffer);
   const image=await tiff.getImage();
-  const raster=await image.readRasters({samples:[0]});
+  const samples = image.getSamplesPerPixel ? image.getSamplesPerPixel() : 1;
+  const raster=await image.readRasters({samples:samples>=3 && kind==="ortho" ? [0,1,2] : [0]});
   const data=raster[0]; let min=Infinity,max=-Infinity,sum=0,count=0;
   const step=Math.max(1,Math.floor(data.length/250000));
   for(let i=0;i<data.length;i+=step){const v=Number(data[i]); if(Number.isFinite(v)){min=Math.min(min,v);max=Math.max(max,v);sum+=v;count++;}}
-  rasterStats={min,max,mean:sum/count,count,width:image.getWidth(),height:image.getHeight()};
+  const stats={min,max,mean:sum/count,count,width:image.getWidth(),height:image.getHeight()};
+  let bounds=null;
   try{
     const bb=image.getBoundingBox();
-    rasterBounds={minX:bb[0],minY:bb[1],maxX:bb[2],maxY:bb[3]};
+    bounds={minX:bb[0],minY:bb[1],maxX:bb[2],maxY:bb[3]};
   }catch(_){
-    rasterBounds=null;
+    bounds=null;
   }
   const w=image.getWidth(), h=image.getHeight(), preview=document.createElement("canvas"), maxSide=700, scale=Math.min(1,maxSide/Math.max(w,h));
   preview.width=Math.max(1,Math.floor(w*scale)); preview.height=Math.max(1,Math.floor(h*scale));
@@ -213,12 +260,18 @@ async function readGeoTiffBuffer(arrayBuffer){
     for(let x=0;x<preview.width;x++){
       const srcX=Math.floor(x/scale), srcY=Math.floor(y/scale), v=Number(data[srcY*w+srcX]);
       const t=Number.isFinite(v) && max>min ? (v-min)/(max-min) : 0;
-      const shade=Math.max(40,Math.min(235,Math.round(235-t*145)));
-      const idx=(y*preview.width+x)*4; img.data[idx]=shade-20; img.data[idx+1]=shade; img.data[idx+2]=shade-15; img.data[idx+3]=255;
+      const idx=(y*preview.width+x)*4;
+      if(kind==="ortho" && raster.length>=3){
+        img.data[idx]=Number(raster[0][srcY*w+srcX])||0; img.data[idx+1]=Number(raster[1][srcY*w+srcX])||0; img.data[idx+2]=Number(raster[2][srcY*w+srcX])||0; img.data[idx+3]=255;
+      }else{
+        const shade=Math.max(40,Math.min(235,Math.round(235-t*145)));
+        img.data[idx]=shade-20; img.data[idx+1]=shade; img.data[idx+2]=shade-15; img.data[idx+3]=255;
+      }
     }
   }
-  pctx.putImageData(img,0,0); rasterPreview=preview;
-  topoLines=buildTopoLines(data,w,h,min,max,rasterBounds);
+  pctx.putImageData(img,0,0);
+  if(kind==="ortho"){orthoPreview=preview; orthoBounds=bounds;}
+  else {rasterPreview=preview; rasterBounds=bounds; rasterStats=stats; topoLines=buildTopoLines(data,w,h,min,max,rasterBounds);}
   renderSpatialStats();
   drawMap();
 }
@@ -289,21 +342,33 @@ document.getElementById("downloadCsv").onclick=()=>download("base_furos_terrock.
 document.getElementById("downloadReport").onclick=()=>download("relatorio_terrock_flyrock.html",reportHtml,"text/html;charset=utf-8");
 document.getElementById("dxfFile").onchange=async e=>{const file=e.target.files[0]; if(!file)return; contour=parseDxf(await file.text(),n(document.getElementById("dxfUnit").value)); drawMap(); renderSpatialStats();};
 document.getElementById("geotiffFile").onchange=async e=>{const file=e.target.files[0]; if(file) await readGeoTiff(file);};
-["kValue","angleValue","peopleFactor","equipmentFactor","targetRadius","referenceMode","dxfUnit"].forEach(id=>document.getElementById(id).addEventListener("input",()=>run(true)));
+document.getElementById("orthoFile").onchange=async e=>{const file=e.target.files[0]; if(file) await readGeoTiffBuffer(await file.arrayBuffer(),"ortho");};
+["kValue","angleValue","peopleFactor","equipmentFactor","targetRadius","referenceMode","dxfUnit","showOrtho","showTopo","showRadius"].forEach(id=>document.getElementById(id).addEventListener("input",()=>{run(true); drawMap();}));
+document.getElementById("zoomIn").onclick=()=>zoomView(.72);
+document.getElementById("zoomOut").onclick=()=>zoomView(1.38);
+document.getElementById("resetView").onclick=()=>{viewBounds=getInitialBounds(); drawMap();};
+const mapCanvas=document.getElementById("mapCanvas");
+mapCanvas.addEventListener("wheel",e=>{e.preventDefault(); zoomView(e.deltaY<0?.82:1.22,e.offsetX,e.offsetY);},{passive:false});
+mapCanvas.addEventListener("mousedown",e=>{isDragging=true; dragStart=[e.clientX,e.clientY];});
+window.addEventListener("mouseup",()=>{isDragging=false;});
+window.addEventListener("mousemove",e=>{if(!isDragging||!dragStart)return; const dx=e.clientX-dragStart[0], dy=e.clientY-dragStart[1]; dragStart=[e.clientX,e.clientY]; panView(dx,dy);});
 
 async function loadExampleAssets(){
   try{
-    const [tif,dxf]=await Promise.all([
+    const [surface,ortho,dxf]=await Promise.all([
       fetch("./assets/examples/curvas-de-nivel.tif").then(r=>r.arrayBuffer()),
+      fetch("./assets/examples/ortomosaico.tif").then(r=>r.arrayBuffer()),
       fetch("./assets/examples/plano-de-perfuracao.dxf").then(r=>r.text())
     ]);
-    await readGeoTiffBuffer(tif);
+    await readGeoTiffBuffer(ortho,"ortho");
+    await readGeoTiffBuffer(surface,"surface");
     contour=parseDxf(dxf,n(document.getElementById("dxfUnit").value));
-    document.getElementById("exampleStatus").textContent="Exemplo carregado: curvas de nível e plano de perfuração. Você pode substituir os arquivos acima.";
+    viewBounds=getInitialBounds();
+    document.getElementById("exampleStatus").textContent="Exemplo carregado: ortomosaico, curvas de nível e plano de perfuração. Arraste o mapa e use o scroll para zoom.";
     renderSpatialStats();
     run(true);
   }catch(err){
-    document.getElementById("exampleStatus").textContent="Não foi possível carregar o exemplo automaticamente. Use os campos acima para importar GeoTIFF e DXF.";
+    document.getElementById("exampleStatus").textContent="Não foi possível carregar o exemplo automaticamente. Use os campos acima para importar GeoTIFF, ortomosaico e DXF.";
   }
 }
 

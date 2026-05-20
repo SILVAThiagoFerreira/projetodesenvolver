@@ -26,7 +26,7 @@
       <p class="lead">Preencha os parâmetros do fogo diretamente. O cálculo usa a equação Terrock com `K` informado pelo responsável pela análise.</p>
       <div class="grid four">
         <label>Desmonte<input id="blastName" value="Fogo 01"></label>
-        <label>K Terrock<input id="kValue" type="number" value="21.9" min="0.01" step="0.1"></label>
+        <label>K Terrock<input id="kValue" type="number" value="10.5" min="0.01" step="0.1"></label>
         <label>Ângulo de lançamento (graus)<input id="angleValue" type="number" value="45" min="1" max="89" step="1"></label>
         <label>Fator pessoas<input id="peopleFactor" type="number" value="4" min="1" step="0.1"></label>
         <label>Fator equipamentos<input id="equipmentFactor" type="number" value="2" min="1" step="0.1"></label>
@@ -76,9 +76,18 @@
       <h2>3. Topografia e contorno</h2>
       <div class="grid two">
         <label>GeoTIFF da curva/superfície de nível<input id="geotiffFile" type="file" accept=".tif,.tiff"></label>
+        <label>Ortomosaico GeoTIFF<input id="orthoFile" type="file" accept=".tif,.tiff"></label>
         <label>DXF com contorno do plano de perfuração<input id="dxfFile" type="file" accept=".dxf"></label>
       </div>
-      <p class="lead" id="exampleStatus">Carregando exemplo: curvas de nível e plano de perfuração.</p>
+      <div class="map-toolbar">
+        <button id="zoomIn" class="secondary">Zoom +</button>
+        <button id="zoomOut" class="secondary">Zoom -</button>
+        <button id="resetView" class="secondary">Resetar vista</button>
+        <label class="toggle"><input id="showOrtho" type="checkbox" checked> Ortomosaico</label>
+        <label class="toggle"><input id="showTopo" type="checkbox" checked> Curvas</label>
+        <label class="toggle"><input id="showRadius" type="checkbox" checked> Raios</label>
+      </div>
+      <p class="lead" id="exampleStatus">Carregando exemplo: ortomosaico, curvas de nível e plano de perfuração.</p>
       <canvas id="mapCanvas" width="980" height="420"></canvas>
       <div class="legend">
         <span><i class="poly"></i> Poligonal do desmonte</span>
