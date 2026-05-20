@@ -3,6 +3,8 @@ let holes = [];
 let results = [];
 let contour = [];
 let rasterStats = null;
+let rasterPreview = null;
+let currentRadius = NaN;
 let charts = [];
 let reportHtml = "";
 
@@ -37,7 +39,7 @@ function renderHoles(){
       const input=document.createElement("input");
       input.type=type; input.value=hole[key] ?? ""; input.dataset.idx=idx; input.dataset.key=key;
       if(key==="id_furo") input.className="id"; if(key==="litologia") input.className="lito";
-      input.oninput=()=>{holes[idx][key]=input.value};
+      input.oninput=()=>{holes[idx][key]=input.value; run(true)};
       td.appendChild(input); tr.appendChild(td);
     });
     const td=document.createElement("td"); const btn=document.createElement("button"); btn.textContent="Remover"; btn.className="remove";
@@ -122,14 +124,29 @@ function polygonStats(pts){
   return {pontos:pts.length,min_x:minX,min_y:minY,max_x:maxX,max_y:maxY,largura_m:maxX-minX,altura_m:maxY-minY,perimetro_m:per,area_m2:Math.abs(area/2)};
 }
 
+function centroid(pts){
+  if(!pts.length) return [0,0];
+  const st=polygonStats(pts);
+  return [(st.min_x+st.max_x)/2,(st.min_y+st.max_y)/2];
+}
+
 function drawMap(){
   const canvas=document.getElementById("mapCanvas"), ctx=canvas.getContext("2d");
   ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle="#f9fbfb"; ctx.fillRect(0,0,canvas.width,canvas.height);
-  if(contour.length){
-    const st=polygonStats(contour), pad=28, sx=(canvas.width-2*pad)/(st.max_x-st.min_x||1), sy=(canvas.height-2*pad)/(st.max_y-st.min_y||1), s=Math.min(sx,sy);
-    ctx.beginPath(); contour.forEach(([x,y],i)=>{const px=pad+(x-st.min_x)*s, py=canvas.height-pad-(y-st.min_y)*s; if(i)ctx.lineTo(px,py); else ctx.moveTo(px,py)}); ctx.closePath();
-    ctx.fillStyle="rgba(0,126,122,.10)"; ctx.fill(); ctx.strokeStyle="#007e7a"; ctx.lineWidth=2; ctx.stroke();
+  if(rasterPreview) ctx.drawImage(rasterPreview,0,0,canvas.width,canvas.height);
+  if(!contour.length) return;
+  const st=polygonStats(contour), [cx,cy]=centroid(contour), radius=Number.isFinite(currentRadius)?currentRadius:0, pad=30;
+  const minX=Math.min(st.min_x,cx-radius), maxX=Math.max(st.max_x,cx+radius), minY=Math.min(st.min_y,cy-radius), maxY=Math.max(st.max_y,cy+radius);
+  const sx=(canvas.width-2*pad)/(maxX-minX||1), sy=(canvas.height-2*pad)/(maxY-minY||1), s=Math.min(sx,sy);
+  const px=x=>pad+(x-minX)*s, py=y=>canvas.height-pad-(y-minY)*s;
+  if(radius>0){
+    ctx.beginPath(); ctx.arc(px(cx),py(cy),radius*s,0,Math.PI*2);
+    ctx.fillStyle="rgba(118,188,33,.10)"; ctx.fill(); ctx.strokeStyle="#76bc21"; ctx.lineWidth=2; ctx.setLineDash([8,5]); ctx.stroke(); ctx.setLineDash([]);
   }
+  ctx.beginPath(); contour.forEach(([x,y],i)=>{if(i)ctx.lineTo(px(x),py(y)); else ctx.moveTo(px(x),py(y))}); ctx.closePath();
+  ctx.fillStyle="rgba(0,126,122,.18)"; ctx.fill(); ctx.strokeStyle="#007e7a"; ctx.lineWidth=3; ctx.stroke();
+  ctx.beginPath(); ctx.arc(px(cx),py(cy),4,0,Math.PI*2); ctx.fillStyle="#003c46"; ctx.fill();
+  ctx.fillStyle="#003c46"; ctx.font="12px Arial"; ctx.fillText(`Raio pessoas: ${fmt(currentRadius)} m`, px(cx)+8, py(cy)-8);
 }
 
 function renderSpatialStats(){
@@ -142,6 +159,10 @@ function renderSpatialStats(){
 
 async function readGeoTiff(file){
   const arrayBuffer=await file.arrayBuffer();
+  await readGeoTiffBuffer(arrayBuffer);
+}
+
+async function readGeoTiffBuffer(arrayBuffer){
   const tiff=await GeoTIFF.fromArrayBuffer(arrayBuffer);
   const image=await tiff.getImage();
   const raster=await image.readRasters({samples:[0]});
@@ -149,24 +170,39 @@ async function readGeoTiff(file){
   const step=Math.max(1,Math.floor(data.length/250000));
   for(let i=0;i<data.length;i+=step){const v=Number(data[i]); if(Number.isFinite(v)){min=Math.min(min,v);max=Math.max(max,v);sum+=v;count++;}}
   rasterStats={min,max,mean:sum/count,count,width:image.getWidth(),height:image.getHeight()};
+  const w=image.getWidth(), h=image.getHeight(), preview=document.createElement("canvas"), maxSide=700, scale=Math.min(1,maxSide/Math.max(w,h));
+  preview.width=Math.max(1,Math.floor(w*scale)); preview.height=Math.max(1,Math.floor(h*scale));
+  const pctx=preview.getContext("2d"), img=pctx.createImageData(preview.width,preview.height);
+  for(let y=0;y<preview.height;y++){
+    for(let x=0;x<preview.width;x++){
+      const srcX=Math.floor(x/scale), srcY=Math.floor(y/scale), v=Number(data[srcY*w+srcX]);
+      const t=Number.isFinite(v) && max>min ? (v-min)/(max-min) : 0;
+      const shade=Math.max(40,Math.min(235,Math.round(235-t*145)));
+      const idx=(y*preview.width+x)*4; img.data[idx]=shade-20; img.data[idx+1]=shade; img.data[idx+2]=shade-15; img.data[idx+3]=255;
+    }
+  }
+  pctx.putImageData(img,0,0); rasterPreview=preview;
   renderSpatialStats();
+  drawMap();
 }
 
-function run(){
+function run(silent=false){
   const k=n(document.getElementById("kValue").value), angle=n(document.getElementById("angleValue").value), people=n(document.getElementById("peopleFactor").value), equipment=n(document.getElementById("equipmentFactor").value);
   results=holes.map(h=>validateAndCompute(h,k,angle));
   const valid=results.filter(r=>r.validation_status==="valid");
   const lmax=valid.map(r=>r.lmax_previsto_m);
   const mode=document.getElementById("referenceMode").value;
-  const ref=mode==="p95"?percentile(lmax,.95):mode==="p90"?percentile(lmax,.90):mode==="mean"?mean(lmax):Math.max(...lmax);
+  const ref=lmax.length ? (mode==="p95"?percentile(lmax,.95):mode==="p90"?percentile(lmax,.90):mode==="mean"?mean(lmax):Math.max(...lmax)) : NaN;
+  currentRadius=Number.isFinite(ref) ? ref*people : NaN;
   document.getElementById("holeCount").textContent=valid.length;
   document.getElementById("lmaxRef").textContent=`${fmt(ref)} m`;
-  document.getElementById("peopleRadius").textContent=`${fmt(ref*people)} m`;
-  document.getElementById("equipmentRadius").textContent=`${fmt(ref*equipment)} m`;
+  document.getElementById("peopleRadius").textContent=`${fmt(currentRadius)} m`;
+  document.getElementById("equipmentRadius").textContent=`${fmt(Number.isFinite(ref)?ref*equipment:NaN)} m`;
   const resultKeys=["id_furo","litologia","coluna_carregada_m","carga_linear_kg_m","razao_tampao_profundidade","lmax_previsto_m","raio_equipamentos_m","raio_pessoas_m","validation_status","validation_errors"];
   document.getElementById("resultsTable").innerHTML=table(results,resultKeys);
   const inverse=inverseRows(valid,k,angle,n(document.getElementById("targetRadius").value),people);
   document.getElementById("inverseTable").innerHTML=table(inverse,["id_furo","litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","aumento_tampao_m","carga_necessaria_kg","reducao_carga_pct","alerta"]);
+  drawMap();
   charts.forEach(c=>c.destroy());
   charts=[
     new Chart(document.getElementById("lmaxChart"),{type:"bar",data:{labels:valid.map(r=>r.id_furo),datasets:[{label:"Lmax previsto (m)",data:lmax,backgroundColor:"#007e7a"}]},options:{plugins:{legend:{display:false}}}}),
@@ -183,5 +219,23 @@ document.getElementById("downloadCsv").onclick=()=>download("base_furos_terrock.
 document.getElementById("downloadReport").onclick=()=>download("relatorio_terrock_flyrock.html",reportHtml,"text/html;charset=utf-8");
 document.getElementById("dxfFile").onchange=async e=>{const file=e.target.files[0]; if(!file)return; contour=parseDxf(await file.text(),n(document.getElementById("dxfUnit").value)); drawMap(); renderSpatialStats();};
 document.getElementById("geotiffFile").onchange=async e=>{const file=e.target.files[0]; if(file) await readGeoTiff(file);};
+["kValue","angleValue","peopleFactor","equipmentFactor","targetRadius","referenceMode","dxfUnit"].forEach(id=>document.getElementById(id).addEventListener("input",()=>run(true)));
+
+async function loadExampleAssets(){
+  try{
+    const [tif,dxf]=await Promise.all([
+      fetch("./assets/examples/curvas-de-nivel.tif").then(r=>r.arrayBuffer()),
+      fetch("./assets/examples/plano-de-perfuracao.dxf").then(r=>r.text())
+    ]);
+    await readGeoTiffBuffer(tif);
+    contour=parseDxf(dxf,n(document.getElementById("dxfUnit").value));
+    document.getElementById("exampleStatus").textContent="Exemplo carregado: curvas de nível e plano de perfuração. Você pode substituir os arquivos acima.";
+    renderSpatialStats();
+    run(true);
+  }catch(err){
+    document.getElementById("exampleStatus").textContent="Não foi possível carregar o exemplo automaticamente. Use os campos acima para importar GeoTIFF e DXF.";
+  }
+}
 
 addHole();
+loadExampleAssets();
