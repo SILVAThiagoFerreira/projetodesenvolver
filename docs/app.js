@@ -1,99 +1,187 @@
-const g = 9.80665;
-let processed = [];
-let reportHtml = "";
+const gravity = 9.80665;
+let holes = [];
+let results = [];
+let contour = [];
+let rasterStats = null;
 let charts = [];
+let reportHtml = "";
 
-const aliases = {
-  "desmonte": "desmonte", "litologia": "litologia", "densidade litologica g cm3": "densidade_litologica_g_cm3",
-  "o furo polegadas": "diametro_furo_pol", "furo polegadas": "diametro_furo_pol", "id furo": "id_furo",
-  "profund m": "profundidade_m", "profundidade m": "profundidade_m", "afast m": "afastamento_m",
-  "afastamento m": "afastamento_m", "espac m": "espacamento_m", "espacamento m": "espacamento_m",
-  "tampao programado m": "tampao_programado_m", "tampao real m": "tampao_real_m",
-  "carga programada kg": "carga_programada_kg", "carga realizado kg": "carga_realizada_kg",
-  "carga realizada kg": "carga_realizada_kg", "massa desmontada kt": "massa_desmontada_kt", "razao de carga": "razao_carga",
-  "distancia horizontal m": "distancia_horizontal_m", "velocidade inicial m s": "velocidade_inicial_m_s",
-  "altura maxima m": "altura_maxima_m", "angle do trajeto": "angulo_trajeto_graus", "angulo do trajeto": "angulo_trajeto_graus"
-};
-const numericCols = ["densidade_litologica_g_cm3","diametro_furo_pol","profundidade_m","afastamento_m","espacamento_m","tampao_programado_m","tampao_real_m","carga_programada_kg","carga_realizada_kg","massa_desmontada_kt","razao_carga","distancia_horizontal_m","velocidade_inicial_m_s","altura_maxima_m","angulo_trajeto_graus"];
+const fields = [
+  ["litologia","text","ITABIRITO"],["densidade_litologica_g_cm3","number","2.7"],["diametro_furo_pol","number","6.5"],
+  ["id_furo","text","F001"],["profundidade_m","number","12"],["afastamento_m","number","4"],["espacamento_m","number","5"],
+  ["tampao_programado_m","number","3.5"],["tampao_real_m","number","3.5"],["carga_programada_kg","number","180"],
+  ["carga_realizada_kg","number","175"],["massa_desmontada_kt","number","0.001"],["razao_carga","number","0.75"]
+];
 
-function slug(v){return String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g," ").trim().toLowerCase().replace(/\s+/g," ")}
-function normId(v){if(v===null||v===undefined||v==="")return ""; return String(v).replace(/\.0$/,"").trim().toUpperCase()}
-function num(v){if(v===null||v===undefined||v==="")return NaN; return Number(String(v).replace(",","."))}
-function median(a){const x=a.filter(Number.isFinite).sort((p,q)=>p-q); if(!x.length)return NaN; const m=Math.floor(x.length/2); return x.length%2?x[m]:(x[m-1]+x[m])/2}
-function percentile(a,p){const x=a.filter(Number.isFinite).sort((p,q)=>p-q); if(!x.length)return NaN; const i=(x.length-1)*p; const lo=Math.floor(i), hi=Math.ceil(i); return x[lo]+(x[hi]-x[lo])*(i-lo)}
-function mean(a){const x=a.filter(Number.isFinite); return x.reduce((s,v)=>s+v,0)/x.length}
-function lmax(k,cl,ds,angle){return (k*k/g)*Math.pow(Math.sqrt(cl)/Math.sqrt(ds),2.6)*Math.pow(Math.sin(angle*Math.PI/180),2)}
-function kEvent(l,cl,ds,angle){const den=Math.pow(Math.sqrt(cl)/Math.sqrt(ds),2.6)*Math.pow(Math.sin(angle*Math.PI/180),2); return Math.sqrt(l*g/den)}
-
-async function readWorkbook(file){const data=await file.arrayBuffer(); return XLSX.read(data,{type:"array"})}
-function normalizeBlast(wb){
-  const rows=[];
-  wb.SheetNames.filter(n=>n.toLowerCase().startsWith("fogo")).forEach(sheet=>{
-    const aoa=XLSX.utils.sheet_to_json(wb.Sheets[sheet],{header:1,defval:null}).filter(r=>r.some(c=>c!==null&&c!==""));
-    if(!aoa.length)return;
-    const vars=aoa.map(r=>aliases[slug(r[0])] || slug(r[0]).replaceAll(" ","_"));
-    const maxCols=Math.max(...aoa.map(r=>r.length));
-    for(let c=1;c<maxCols;c++){
-      const obj={sheet_name:sheet};
-      vars.forEach((name,r)=>obj[name]=aoa[r][c]);
-      obj.desmonte=normId(obj.desmonte || sheet); obj.id_furo=normId(obj.id_furo);
-      numericCols.forEach(col=>{if(col in obj)obj[col]=num(obj[col])});
-      if(obj.id_furo)rows.push(obj);
-    }
-  });
-  return rows;
-}
-function normalizeMonitoring(wb){
-  const sheet=wb.Sheets["BD_Geral"] || wb.Sheets[wb.SheetNames[0]];
-  const json=XLSX.utils.sheet_to_json(sheet,{defval:null});
-  let last="";
-  return json.map(row=>{
-    const obj={}; Object.entries(row).forEach(([k,v])=>obj[aliases[slug(k)] || slug(k).replaceAll(" ","_")]=v);
-    if(obj.desmonte) last=normId(obj.desmonte); obj.desmonte=last; obj.id_furo=normId(obj.id_furo);
-    numericCols.forEach(col=>{if(col in obj)obj[col]=num(obj[col])});
-    return obj;
-  }).filter(r=>r.desmonte&&r.id_furo);
-}
-function validate(r){
-  const e=[];
-  [["profundidade_m",v=>v>0],["tampao_real_m",v=>v>0],["carga_realizada_kg",v=>v>0],["distancia_horizontal_m",v=>v>0],["angulo_trajeto_graus",v=>v>0&&v<90],["afastamento_m",v=>v>0],["espacamento_m",v=>v>0]].forEach(([c,fn])=>{if(!fn(r[c]))e.push(`${c} invalido`)});
-  if(!(r.tampao_real_m<r.profundidade_m))e.push("tampao_real_m deve ser menor que profundidade_m");
-  ["litologia","desmonte","id_furo"].forEach(c=>{if(!r[c])e.push(`${c} vazio`)});
-  r.validation_errors=e.join("; "); r.validation_status=e.length?"invalid":"valid"; return r;
-}
-function engineer(r){
-  r.coluna_carregada_m=r.profundidade_m-r.tampao_real_m; r.carga_linear_kg_m=r.carga_realizada_kg/r.coluna_carregada_m;
-  r.area_malha_m2=r.afastamento_m*r.espacamento_m; r.volume_estimado_m3=r.area_malha_m2*r.profundidade_m;
-  r.massa_estimativa_t=r.volume_estimado_m3*r.densidade_litologica_g_cm3; r.razao_carga_calculada_kg_t=r.carga_realizada_kg/r.massa_estimativa_t;
-  r.razao_tampao_profundidade=r.tampao_real_m/r.profundidade_m; r.energia_relativa=r.carga_realizada_kg/r.tampao_real_m; return r;
-}
-function table(rows, limit=50){if(!rows.length)return "<p>Sem dados.</p>"; const keys=Object.keys(rows[0]); return `<table><thead><tr>${keys.map(k=>`<th>${k}</th>`).join("")}</tr></thead><tbody>${rows.slice(0,limit).map(r=>`<tr>${keys.map(k=>`<td>${Number.isFinite(r[k])?Number(r[k]).toFixed(2):String(r[k]??"")}</td>`).join("")}</tr>`).join("")}</tbody></table>`}
-function download(name, content, type){const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click()}
+function n(v){const x=Number(String(v ?? "").replace(",",".")); return Number.isFinite(x)?x:NaN}
+function fmt(v,d=2){return Number.isFinite(v)?Number(v).toFixed(d):"-"}
+function percentile(a,p){const x=a.filter(Number.isFinite).sort((u,v)=>u-v); if(!x.length)return NaN; const i=(x.length-1)*p, lo=Math.floor(i), hi=Math.ceil(i); return x[lo]+(x[hi]-x[lo])*(i-lo)}
+function mean(a){const x=a.filter(Number.isFinite); return x.length?x.reduce((s,v)=>s+v,0)/x.length:NaN}
+function terrockLmax(k,cl,ds,angle){return (k*k/gravity)*Math.pow(Math.sqrt(cl)/Math.sqrt(ds),2.6)*Math.pow(Math.sin(angle*Math.PI/180),2)}
 function csv(rows){const keys=Object.keys(rows[0]||{}); return [keys.join(";"),...rows.map(r=>keys.map(k=>String(r[k]??"").replaceAll(";"," ")).join(";"))].join("\n")}
+function download(name,content,type){const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click()}
 
-document.getElementById("runBtn").onclick=async()=>{
-  const blastFile=document.getElementById("blastFile").files[0], monitoringFile=document.getElementById("monitoringFile").files[0];
-  if(!blastFile||!monitoringFile){alert("Selecione os dois arquivos Excel."); return}
-  const [blastWb,monWb]=await Promise.all([readWorkbook(blastFile),readWorkbook(monitoringFile)]);
-  const plans=normalizeBlast(blastWb), mon=normalizeMonitoring(monWb), planMap=new Map(plans.map(p=>[`${p.desmonte}|${p.id_furo}`,p]));
-  processed=mon.map(m=>validate(engineer({...m,...(planMap.get(`${m.desmonte}|${m.id_furo}`)||{})})));
-  processed.forEach(r=>{if(r.validation_status==="valid")r.k_evento=kEvent(r.distancia_horizontal_m,r.carga_linear_kg_m,r.tampao_real_m,r.angulo_trajeto_graus)});
-  const kvals=processed.map(r=>r.k_evento); const method=document.getElementById("kMethod").value;
-  const k=method==="mean"?mean(kvals):method==="p75"?percentile(kvals,.75):method==="p90"?percentile(kvals,.90):method==="p95"?percentile(kvals,.95):median(kvals);
-  processed.forEach(r=>{if(r.validation_status==="valid"){r.lmax_previsto_m=lmax(k,r.carga_linear_kg_m,r.tampao_real_m,r.angulo_trajeto_graus); r.erro_m=r.lmax_previsto_m-r.distancia_horizontal_m; r.erro_abs_m=Math.abs(r.erro_m); r.erro_percentual=r.erro_m/r.distancia_horizontal_m*100}});
-  const matched=processed.filter(r=>r.litologia).length, invalid=processed.filter(r=>r.validation_status==="invalid").length;
-  document.getElementById("events").textContent=processed.length; document.getElementById("match").textContent=`${(matched/processed.length*100).toFixed(1)}%`; document.getElementById("kGlobal").textContent=k.toFixed(3); document.getElementById("invalid").textContent=invalid;
-  const eq=Number(document.getElementById("equipmentFactor").value), pe=Number(document.getElementById("peopleFactor").value), pred=processed.map(r=>r.lmax_previsto_m).filter(Number.isFinite);
-  const safety=[["maximo_previsto",Math.max(...pred)],["p90_previsto",percentile(pred,.9)],["p95_previsto",percentile(pred,.95)]].map(([cenario,l])=>({cenario,lmax_referencia_m:l,raio_equipamentos_m:l*eq,raio_pessoas_m:l*pe}));
-  document.getElementById("safetyTable").innerHTML=table(safety);
-  const inverse=[]; processed.filter(r=>r.validation_status==="valid").slice(0,100).forEach(r=>[600,500].forEach(target=>{const allowed=target/pe, ratio=allowed/r.lmax_previsto_m, tamp=r.tampao_real_m/Math.pow(ratio,1/1.3), cl=r.carga_linear_kg_m*Math.pow(ratio,1/1.3), carga=cl*r.coluna_carregada_m; inverse.push({desmonte:r.desmonte,id_furo:r.id_furo,raio_alvo_pessoas_m:target,lmax_permitido_m:allowed,lmax_previsto_atual_m:r.lmax_previsto_m,tampao_necessario_m:tamp,carga_necessaria_kg:carga,reducao_carga_pct:Math.max(0,(1-carga/r.carga_realizada_kg)*100),alerta:tamp<r.profundidade_m?"viavel como triagem":"requer redesenho tecnico"})}));
-  document.getElementById("inverseTable").innerHTML=table(inverse,30);
-  charts.forEach(c=>c.destroy()); charts=[
-    new Chart(document.getElementById("obsPredChart"),{type:"scatter",data:{datasets:[{label:"Observado x previsto",data:processed.filter(r=>Number.isFinite(r.lmax_previsto_m)).map(r=>({x:r.distancia_horizontal_m,y:r.lmax_previsto_m}))}]},options:{scales:{x:{title:{display:true,text:"Observado m"}},y:{title:{display:true,text:"Previsto m"}}}}}),
-    new Chart(document.getElementById("kChart"),{type:"bar",data:{labels:processed.filter(r=>Number.isFinite(r.k_evento)).map(r=>r.id_furo),datasets:[{label:"K evento",data:processed.filter(r=>Number.isFinite(r.k_evento)).map(r=>r.k_evento)}]},options:{plugins:{legend:{display:false}}}})
+function addHole(seed={}){
+  const row = Object.fromEntries(fields.map(([key,,def]) => [key, seed[key] ?? def]));
+  holes.push(row);
+  renderHoles();
+}
+
+function renderHoles(){
+  const tbody = document.querySelector("#holesTable tbody");
+  tbody.innerHTML = "";
+  holes.forEach((hole,idx)=>{
+    const tr=document.createElement("tr");
+    fields.forEach(([key,type])=>{
+      const td=document.createElement("td");
+      const input=document.createElement("input");
+      input.type=type; input.value=hole[key] ?? ""; input.dataset.idx=idx; input.dataset.key=key;
+      if(key==="id_furo") input.className="id"; if(key==="litologia") input.className="lito";
+      input.oninput=()=>{holes[idx][key]=input.value};
+      td.appendChild(input); tr.appendChild(td);
+    });
+    const td=document.createElement("td"); const btn=document.createElement("button"); btn.textContent="Remover"; btn.className="remove";
+    btn.onclick=()=>{holes.splice(idx,1); renderHoles()}; td.appendChild(btn); tr.appendChild(td); tbody.appendChild(tr);
+  });
+}
+
+function validateAndCompute(h,k,angle){
+  const r={...h};
+  ["densidade_litologica_g_cm3","diametro_furo_pol","profundidade_m","afastamento_m","espacamento_m","tampao_programado_m","tampao_real_m","carga_programada_kg","carga_realizada_kg","massa_desmontada_kt","razao_carga"].forEach(c=>r[c]=n(r[c]));
+  const errors=[];
+  if(!r.litologia) errors.push("litologia vazia");
+  if(!r.id_furo) errors.push("id_furo vazio");
+  if(!(r.profundidade_m>0)) errors.push("profundidade invalida");
+  if(!(r.tampao_real_m>0)) errors.push("tampao real invalido");
+  if(!(r.tampao_real_m<r.profundidade_m)) errors.push("tampao deve ser menor que profundidade");
+  if(!(r.carga_realizada_kg>0)) errors.push("carga realizada invalida");
+  if(!(r.afastamento_m>0)) errors.push("afastamento invalido");
+  if(!(r.espacamento_m>0)) errors.push("espacamento invalido");
+  if(!(angle>0 && angle<90)) errors.push("angulo invalido");
+  r.validation_errors=errors.join("; ");
+  r.validation_status=errors.length?"invalid":"valid";
+  if(!errors.length){
+    r.coluna_carregada_m=r.profundidade_m-r.tampao_real_m;
+    r.carga_linear_kg_m=r.carga_realizada_kg/r.coluna_carregada_m;
+    r.area_malha_m2=r.afastamento_m*r.espacamento_m;
+    r.volume_estimado_m3=r.area_malha_m2*r.profundidade_m;
+    r.massa_estimativa_t=r.volume_estimado_m3*r.densidade_litologica_g_cm3;
+    r.razao_carga_calculada_kg_t=r.carga_realizada_kg/r.massa_estimativa_t;
+    r.razao_tampao_profundidade=r.tampao_real_m/r.profundidade_m;
+    r.energia_relativa=r.carga_realizada_kg/r.tampao_real_m;
+    r.lmax_previsto_m=terrockLmax(k,r.carga_linear_kg_m,r.tampao_real_m,angle);
+    r.raio_pessoas_m=r.lmax_previsto_m*n(document.getElementById("peopleFactor").value);
+    r.raio_equipamentos_m=r.lmax_previsto_m*n(document.getElementById("equipmentFactor").value);
+  }
+  return r;
+}
+
+function table(rows, keys, limit=100){
+  if(!rows.length) return "<p>Sem dados calculados.</p>";
+  return `<div class="table-wrap"><table><thead><tr>${keys.map(k=>`<th>${k}</th>`).join("")}</tr></thead><tbody>${rows.slice(0,limit).map(r=>`<tr>${keys.map(k=>`<td>${Number.isFinite(r[k])?fmt(r[k]):String(r[k]??"")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+
+function inverseRows(valid,k,angle,target,peopleFactor){
+  const allowed=target/peopleFactor;
+  return valid.map(r=>{
+    const ratio=allowed/r.lmax_previsto_m;
+    const tampaoNec=r.tampao_real_m/Math.pow(ratio,1/1.3);
+    const clNec=r.carga_linear_kg_m*Math.pow(ratio,1/1.3);
+    const cargaNec=clNec*r.coluna_carregada_m;
+    return {
+      id_furo:r.id_furo, litologia:r.litologia, lmax_atual_m:r.lmax_previsto_m, raio_atual_pessoas_m:r.raio_pessoas_m,
+      raio_alvo_pessoas_m:target, lmax_permitido_m:allowed, tampao_atual_m:r.tampao_real_m,
+      tampao_necessario_m:tampaoNec, aumento_tampao_m:Math.max(0,tampaoNec-r.tampao_real_m),
+      carga_atual_kg:r.carga_realizada_kg, carga_necessaria_kg:cargaNec,
+      reducao_carga_pct:Math.max(0,(1-cargaNec/r.carga_realizada_kg)*100),
+      alerta:tampaoNec<r.profundidade_m && cargaNec>0 ? "viavel como triagem" : "requer redesenho tecnico"
+    };
+  });
+}
+
+function parseDxf(text,scale){
+  const lines=text.replace(/\r/g,"").split("\n").map(s=>s.trim());
+  const pts=[];
+  for(let i=0;i<lines.length-1;i++){
+    if(lines[i]==="10" && /^-?\d/.test(lines[i+1])){
+      const x=n(lines[i+1])*scale;
+      let y=NaN;
+      for(let j=i+2;j<Math.min(i+8,lines.length-1);j++){
+        if(lines[j]==="20"){y=n(lines[j+1])*scale; break}
+      }
+      if(Number.isFinite(x)&&Number.isFinite(y)) pts.push([x,y]);
+    }
+  }
+  return pts;
+}
+
+function polygonStats(pts){
+  if(pts.length<2) return null;
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity,per=0,area=0;
+  pts.forEach(([x,y],i)=>{minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y); const [x2,y2]=pts[(i+1)%pts.length]; per+=Math.hypot(x2-x,y2-y); area+=x*y2-x2*y});
+  return {pontos:pts.length,min_x:minX,min_y:minY,max_x:maxX,max_y:maxY,largura_m:maxX-minX,altura_m:maxY-minY,perimetro_m:per,area_m2:Math.abs(area/2)};
+}
+
+function drawMap(){
+  const canvas=document.getElementById("mapCanvas"), ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle="#f9fbfb"; ctx.fillRect(0,0,canvas.width,canvas.height);
+  if(contour.length){
+    const st=polygonStats(contour), pad=28, sx=(canvas.width-2*pad)/(st.max_x-st.min_x||1), sy=(canvas.height-2*pad)/(st.max_y-st.min_y||1), s=Math.min(sx,sy);
+    ctx.beginPath(); contour.forEach(([x,y],i)=>{const px=pad+(x-st.min_x)*s, py=canvas.height-pad-(y-st.min_y)*s; if(i)ctx.lineTo(px,py); else ctx.moveTo(px,py)}); ctx.closePath();
+    ctx.fillStyle="rgba(0,126,122,.10)"; ctx.fill(); ctx.strokeStyle="#007e7a"; ctx.lineWidth=2; ctx.stroke();
+  }
+}
+
+function renderSpatialStats(){
+  const dxf=polygonStats(contour);
+  const items=[];
+  if(dxf){items.push(["Área DXF",`${fmt(dxf.area_m2)} m²`],["Perímetro DXF",`${fmt(dxf.perimetro_m)} m`],["Largura x altura",`${fmt(dxf.largura_m)} x ${fmt(dxf.altura_m)} m`],["Pontos DXF",dxf.pontos]);}
+  if(rasterStats){items.push(["GeoTIFF min",fmt(rasterStats.min)],["GeoTIFF média",fmt(rasterStats.mean)],["GeoTIFF max",fmt(rasterStats.max)],["Pixels amostrados",rasterStats.count]);}
+  document.getElementById("spatialStats").innerHTML=items.map(([k,v])=>`<div><strong>${k}</strong><span>${v}</span></div>`).join("");
+}
+
+async function readGeoTiff(file){
+  const arrayBuffer=await file.arrayBuffer();
+  const tiff=await GeoTIFF.fromArrayBuffer(arrayBuffer);
+  const image=await tiff.getImage();
+  const raster=await image.readRasters({samples:[0]});
+  const data=raster[0]; let min=Infinity,max=-Infinity,sum=0,count=0;
+  const step=Math.max(1,Math.floor(data.length/250000));
+  for(let i=0;i<data.length;i+=step){const v=Number(data[i]); if(Number.isFinite(v)){min=Math.min(min,v);max=Math.max(max,v);sum+=v;count++;}}
+  rasterStats={min,max,mean:sum/count,count,width:image.getWidth(),height:image.getHeight()};
+  renderSpatialStats();
+}
+
+function run(){
+  const k=n(document.getElementById("kValue").value), angle=n(document.getElementById("angleValue").value), people=n(document.getElementById("peopleFactor").value), equipment=n(document.getElementById("equipmentFactor").value);
+  results=holes.map(h=>validateAndCompute(h,k,angle));
+  const valid=results.filter(r=>r.validation_status==="valid");
+  const lmax=valid.map(r=>r.lmax_previsto_m);
+  const mode=document.getElementById("referenceMode").value;
+  const ref=mode==="p95"?percentile(lmax,.95):mode==="p90"?percentile(lmax,.90):mode==="mean"?mean(lmax):Math.max(...lmax);
+  document.getElementById("holeCount").textContent=valid.length;
+  document.getElementById("lmaxRef").textContent=`${fmt(ref)} m`;
+  document.getElementById("peopleRadius").textContent=`${fmt(ref*people)} m`;
+  document.getElementById("equipmentRadius").textContent=`${fmt(ref*equipment)} m`;
+  const resultKeys=["id_furo","litologia","coluna_carregada_m","carga_linear_kg_m","razao_tampao_profundidade","lmax_previsto_m","raio_equipamentos_m","raio_pessoas_m","validation_status","validation_errors"];
+  document.getElementById("resultsTable").innerHTML=table(results,resultKeys);
+  const inverse=inverseRows(valid,k,angle,n(document.getElementById("targetRadius").value),people);
+  document.getElementById("inverseTable").innerHTML=table(inverse,["id_furo","litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","aumento_tampao_m","carga_necessaria_kg","reducao_carga_pct","alerta"]);
+  charts.forEach(c=>c.destroy());
+  charts=[
+    new Chart(document.getElementById("lmaxChart"),{type:"bar",data:{labels:valid.map(r=>r.id_furo),datasets:[{label:"Lmax previsto (m)",data:lmax,backgroundColor:"#007e7a"}]},options:{plugins:{legend:{display:false}}}}),
+    new Chart(document.getElementById("stemmingChart"),{type:"scatter",data:{datasets:[{label:"Lmax x tampão",data:valid.map(r=>({x:r.tampao_real_m,y:r.lmax_previsto_m}))}]},options:{scales:{x:{title:{display:true,text:"Tampão real (m)"}},y:{title:{display:true,text:"Lmax (m)"}}}}})
   ];
-  reportHtml=`<html><meta charset="utf-8"><body><h1>Relatório Flyrock</h1><p>K global: ${k.toFixed(4)}. Eventos: ${processed.length}. Match: ${(matched/processed.length*100).toFixed(1)}%.</p><p>Ferramenta de apoio técnico. Não substitui responsável técnico habilitado.</p><h2>Raios</h2>${table(safety)}<h2>Cenários</h2>${table(inverse,100)}</body></html>`;
+  reportHtml=`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><body><h1>Relatório Terrock Flyrock</h1><p>Desmonte: ${document.getElementById("blastName").value}. K=${k}. Ângulo=${angle}°. Lmax referência=${fmt(ref)} m. Raio pessoas=${fmt(ref*people)} m.</p><p>Ferramenta de apoio técnico; não substitui responsável técnico habilitado.</p><h2>Resultados</h2>${table(results,resultKeys)}<h2>Desenho inverso</h2>${table(inverse,["id_furo","litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","carga_necessaria_kg","alerta"])}</body></html>`;
   document.getElementById("downloadCsv").disabled=false; document.getElementById("downloadReport").disabled=false;
-};
-document.getElementById("downloadCsv").onclick=()=>download("base_modelagem.csv",csv(processed),"text/csv;charset=utf-8");
-document.getElementById("downloadReport").onclick=()=>download("relatorio_flyrock.html",reportHtml,"text/html;charset=utf-8");
+}
+
+document.getElementById("addHoleBtn").onclick=()=>addHole({id_furo:`F${String(holes.length+1).padStart(3,"0")}`});
+document.getElementById("sampleBtn").onclick=()=>{holes=[]; addHole({id_furo:"F001",litologia:"SULFETO",densidade_litologica_g_cm3:2.8,profundidade_m:12,tampao_real_m:4.1,carga_realizada_kg:170}); addHole({id_furo:"F002",litologia:"OXIDADO",densidade_litologica_g_cm3:2.4,profundidade_m:10,tampao_real_m:5,carga_realizada_kg:135});};
+document.getElementById("runBtn").onclick=run;
+document.getElementById("downloadCsv").onclick=()=>download("base_furos_terrock.csv",csv(results),"text/csv;charset=utf-8");
+document.getElementById("downloadReport").onclick=()=>download("relatorio_terrock_flyrock.html",reportHtml,"text/html;charset=utf-8");
+document.getElementById("dxfFile").onchange=async e=>{const file=e.target.files[0]; if(!file)return; contour=parseDxf(await file.text(),n(document.getElementById("dxfUnit").value)); drawMap(); renderSpatialStats();};
+document.getElementById("geotiffFile").onchange=async e=>{const file=e.target.files[0]; if(file) await readGeoTiff(file);};
+
+addHole();
