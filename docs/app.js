@@ -166,9 +166,6 @@ function drawMap(){
   const px=x=>pad+(x-minX)*s, py=y=>canvas.height-pad-(y-minY)*s;
   const wx=screenX=>minX+(screenX-pad)/s, wy=screenY=>minY+(canvas.height-pad-screenY)/s;
   if(document.getElementById("showSatellite").checked) drawSatellite(ctx,{minX,maxX,minY,maxY},px,py);
-  ctx.strokeStyle="#d7e2df"; ctx.lineWidth=1;
-  for(let gx=Math.ceil(minX/50)*50;gx<=maxX;gx+=50){ctx.beginPath();ctx.moveTo(px(gx),py(minY));ctx.lineTo(px(gx),py(maxY));ctx.stroke();}
-  for(let gy=Math.ceil(minY/50)*50;gy<=maxY;gy+=50){ctx.beginPath();ctx.moveTo(px(minX),py(gy));ctx.lineTo(px(maxX),py(gy));ctx.stroke();}
   if(orthoPreview && orthoBounds && document.getElementById("showOrtho").checked){
     drawRaster(ctx,orthoPreview,orthoBounds,px,py,s,.92);
   }
@@ -422,6 +419,43 @@ function run(silent=false){
   ];
   reportHtml=`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><body><h1>Relatório Terrock Flyrock</h1><p>Desmonte: ${document.getElementById("blastName").value}. K=${k}. Ângulo=${angle}°. Lmax referência=${fmt(ref)} m. Raio pessoas=${fmt(ref*people)} m.</p><p>Ferramenta de apoio técnico; não substitui responsável técnico habilitado.</p><h2>Resultados</h2>${table(results,resultKeys)}<h2>Desenho inverso</h2>${table(inverse,["id_furo","litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","carga_necessaria_kg","alerta"])}</body></html>`;
   document.getElementById("downloadCsv").disabled=false; document.getElementById("downloadReport").disabled=false;
+  document.getElementById("downloadKml").disabled=!contour.length;
+  document.getElementById("openEarth").disabled=!contour.length;
+}
+
+function contourLonLat(){
+  const zone=n(document.getElementById("utmZone").value), hemi=document.getElementById("utmHemisphere").value;
+  return contour.map(([x,y])=>utmToLatLon(x,y,zone,hemi));
+}
+
+function circleLonLat(radius,steps=96){
+  const [cx,cy]=centroid(contour), zone=n(document.getElementById("utmZone").value), hemi=document.getElementById("utmHemisphere").value;
+  const pts=[];
+  for(let i=0;i<=steps;i++){
+    const a=i/steps*Math.PI*2;
+    pts.push(utmToLatLon(cx+Math.cos(a)*radius,cy+Math.sin(a)*radius,zone,hemi));
+  }
+  return pts;
+}
+
+function kmlCoords(points){
+  return points.map(p=>`${p.lon},${p.lat},0`).join(" ");
+}
+
+function buildKml(){
+  const people=Number.isFinite(currentRadius)?circleLonLat(currentRadius):[];
+  const eqFactor=n(document.getElementById("equipmentFactor").value), peopleFactor=n(document.getElementById("peopleFactor").value);
+  const equipment=Number.isFinite(currentRadius)?circleLonLat(currentRadius*(eqFactor/peopleFactor)):[];
+  const poly=contourLonLat();
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Zona de Segurança Flyrock</name>
+<Style id="poly"><LineStyle><color>ff463c00</color><width>3</width></LineStyle><PolyStyle><color>55463c00</color></PolyStyle></Style>
+<Style id="people"><LineStyle><color>ff21bc76</color><width>3</width></LineStyle><PolyStyle><color>2521bc76</color></PolyStyle></Style>
+<Style id="equip"><LineStyle><color>ff7a7e00</color><width>2</width></LineStyle><PolyStyle><color>257a7e00</color></PolyStyle></Style>
+<Placemark><name>Poligonal do desmonte</name><styleUrl>#poly</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>${kmlCoords(poly.concat(poly[0] ? [poly[0]] : []))}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark><name>Raio pessoas ${fmt(currentRadius)} m</name><styleUrl>#people</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>${kmlCoords(people)}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark><name>Raio equipamentos</name><styleUrl>#equip</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>${kmlCoords(equipment)}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+</Document></kml>`;
 }
 
 function updateEquationPanel(valid,k,angle,ref,people,equipment,mode){
@@ -458,6 +492,12 @@ document.getElementById("sampleBtn").onclick=()=>{holes=[]; addHole({id_furo:"F0
 document.getElementById("runBtn").onclick=run;
 document.getElementById("downloadCsv").onclick=()=>download("base_furos_terrock.csv",csv(results),"text/csv;charset=utf-8");
 document.getElementById("downloadReport").onclick=()=>download("relatorio_terrock_flyrock.html",reportHtml,"text/html;charset=utf-8");
+document.getElementById("downloadKml").onclick=()=>download("zona_seguranca_google_earth.kml",buildKml(),"application/vnd.google-earth.kml+xml;charset=utf-8");
+document.getElementById("openEarth").onclick=()=>{
+  if(!contour.length) return;
+  const [cx,cy]=centroid(contour), p=utmToLatLon(cx,cy,n(document.getElementById("utmZone").value),document.getElementById("utmHemisphere").value);
+  window.open(`https://earth.google.com/web/@${p.lat},${p.lon},800a,1200d,35y,0h,0t,0r`,"_blank");
+};
 document.getElementById("dxfFile").onchange=async e=>{const file=e.target.files[0]; if(!file)return; contour=parseDxf(await file.text(),n(document.getElementById("dxfUnit").value)); viewBounds=getInitialBounds(); run(true); renderSpatialStats();};
 document.getElementById("geotiffFile").onchange=async e=>{const file=e.target.files[0]; if(file){await readGeoTiff(file); viewBounds=getInitialBounds(); drawMap();}};
 document.getElementById("orthoFile").onchange=async e=>{const file=e.target.files[0]; if(file){await readGeoTiffBuffer(await file.arrayBuffer(),"ortho"); viewBounds=getInitialBounds(); drawMap();}};
