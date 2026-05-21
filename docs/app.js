@@ -12,6 +12,7 @@ let currentRadius = NaN;
 let viewBounds = null;
 let isDragging = false;
 let dragStart = null;
+const tileCache = new Map();
 let charts = [];
 let reportHtml = "";
 
@@ -164,6 +165,7 @@ function drawMap(){
   const sx=(canvas.width-2*pad)/(maxX-minX||1), sy=(canvas.height-2*pad)/(maxY-minY||1), s=Math.min(sx,sy);
   const px=x=>pad+(x-minX)*s, py=y=>canvas.height-pad-(y-minY)*s;
   const wx=screenX=>minX+(screenX-pad)/s, wy=screenY=>minY+(canvas.height-pad-screenY)/s;
+  if(document.getElementById("showSatellite").checked) drawSatellite(ctx,{minX,maxX,minY,maxY},px,py);
   ctx.strokeStyle="#d7e2df"; ctx.lineWidth=1;
   for(let gx=Math.ceil(minX/50)*50;gx<=maxX;gx+=50){ctx.beginPath();ctx.moveTo(px(gx),py(minY));ctx.lineTo(px(gx),py(maxY));ctx.stroke();}
   for(let gy=Math.ceil(minY/50)*50;gy<=maxY;gy+=50){ctx.beginPath();ctx.moveTo(px(minX),py(gy));ctx.lineTo(px(maxX),py(gy));ctx.stroke();}
@@ -193,6 +195,87 @@ function drawMap(){
   ctx.fillStyle="#003c46"; ctx.font="bold 13px Arial"; ctx.fillText(`Raio pessoas: ${fmt(currentRadius)} m`, px(cx)+10, py(cy)-10);
   ctx.font="12px Arial"; ctx.fillText(`Poligonal do desmonte`, px(cx)+10, py(cy)+8);
   drawMap.lastTransform={px,py,wx,wy,s,pad};
+}
+
+function drawSatellite(ctx,bounds,px,py){
+  const zone=n(document.getElementById("utmZone").value), hemi=document.getElementById("utmHemisphere").value;
+  if(!(zone>=1&&zone<=60)) return;
+  const corners=[
+    utmToLatLon(bounds.minX,bounds.minY,zone,hemi),
+    utmToLatLon(bounds.maxX,bounds.maxY,zone,hemi)
+  ];
+  const z=estimateZoom(bounds);
+  const t1=lonLatToTile(corners[0].lon,corners[1].lat,z), t2=lonLatToTile(corners[1].lon,corners[0].lat,z);
+  const minTx=Math.max(0,Math.min(t1.x,t2.x)-1), maxTx=Math.min(2**z-1,Math.max(t1.x,t2.x)+1);
+  const minTy=Math.max(0,Math.min(t1.y,t2.y)-1), maxTy=Math.min(2**z-1,Math.max(t1.y,t2.y)+1);
+  for(let x=minTx;x<=maxTx;x++){
+    for(let y=minTy;y<=maxTy;y++){
+      const img=getTile(z,x,y);
+      if(!img.complete) continue;
+      const nw=tileToLonLat(x,y,z), se=tileToLonLat(x+1,y+1,z);
+      const p1=lonLatToUtm(nw.lon,nw.lat,zone,hemi), p2=lonLatToUtm(se.lon,se.lat,zone,hemi);
+      ctx.globalAlpha=.82;
+      ctx.drawImage(img,px(p1.easting),py(p1.northing),px(p2.easting)-px(p1.easting),py(p2.northing)-py(p1.northing));
+      ctx.globalAlpha=1;
+    }
+  }
+}
+
+function getTile(z,x,y){
+  const key=`${z}/${x}/${y}`;
+  if(tileCache.has(key)) return tileCache.get(key);
+  const img=new Image();
+  img.crossOrigin="anonymous";
+  img.onload=drawMap;
+  img.src=`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+  tileCache.set(key,img);
+  return img;
+}
+
+function estimateZoom(bounds){
+  const width=Math.max(bounds.maxX-bounds.minX,bounds.maxY-bounds.minY);
+  if(width<250) return 18;
+  if(width<500) return 17;
+  if(width<1200) return 16;
+  if(width<2500) return 15;
+  return 14;
+}
+
+function lonLatToTile(lon,lat,z){
+  const latRad=lat*Math.PI/180, n=2**z;
+  return {x:Math.floor((lon+180)/360*n),y:Math.floor((1-Math.log(Math.tan(latRad)+1/Math.cos(latRad))/Math.PI)/2*n)};
+}
+
+function tileToLonLat(x,y,z){
+  const n=2**z, lon=x/n*360-180, lat=Math.atan(Math.sinh(Math.PI*(1-2*y/n)))*180/Math.PI;
+  return {lon,lat};
+}
+
+function utmToLatLon(easting,northing,zone,hemisphere){
+  const a=6378137, e=0.081819191, e1sq=0.006739497, k0=0.9996;
+  const x=easting-500000; let y=northing;
+  if(hemisphere==="S") y-=10000000;
+  const m=y/k0, mu=m/(a*(1-e*e/4-3*e**4/64-5*e**6/256));
+  const e1=(1-Math.sqrt(1-e*e))/(1+Math.sqrt(1-e*e));
+  const j1=3*e1/2-27*e1**3/32, j2=21*e1*e1/16-55*e1**4/32, j3=151*e1**3/96, j4=1097*e1**4/512;
+  const fp=mu+j1*Math.sin(2*mu)+j2*Math.sin(4*mu)+j3*Math.sin(6*mu)+j4*Math.sin(8*mu);
+  const c1=e1sq*Math.cos(fp)**2, t1=Math.tan(fp)**2, r1=a*(1-e*e)/Math.pow(1-e*e*Math.sin(fp)**2,1.5), n1=a/Math.sqrt(1-e*e*Math.sin(fp)**2), d=x/(n1*k0);
+  const q1=n1*Math.tan(fp)/r1, q2=d*d/2, q3=(5+3*t1+10*c1-4*c1*c1-9*e1sq)*d**4/24, q4=(61+90*t1+298*c1+45*t1*t1-252*e1sq-3*c1*c1)*d**6/720;
+  const lat=fp-q1*(q2-q3+q4);
+  const q5=d, q6=(1+2*t1+c1)*d**3/6, q7=(5-2*c1+28*t1-3*c1*c1+8*e1sq+24*t1*t1)*d**5/120;
+  const lon0=(zone-1)*6-180+3;
+  const lon=lon0+(q5-q6+q7)/Math.cos(fp)*180/Math.PI;
+  return {lat:lat*180/Math.PI,lon};
+}
+
+function lonLatToUtm(lon,lat,zone,hemisphere){
+  const a=6378137, eccSquared=0.00669438, k0=0.9996, latRad=lat*Math.PI/180, lonRad=lon*Math.PI/180, lonOrigin=(zone-1)*6-180+3, lonOriginRad=lonOrigin*Math.PI/180;
+  const eccPrimeSquared=eccSquared/(1-eccSquared), n1=a/Math.sqrt(1-eccSquared*Math.sin(latRad)**2), t=Math.tan(latRad)**2, c=eccPrimeSquared*Math.cos(latRad)**2, A=Math.cos(latRad)*(lonRad-lonOriginRad);
+  const M=a*((1-eccSquared/4-3*eccSquared**2/64-5*eccSquared**3/256)*latRad-(3*eccSquared/8+3*eccSquared**2/32+45*eccSquared**3/1024)*Math.sin(2*latRad)+(15*eccSquared**2/256+45*eccSquared**3/1024)*Math.sin(4*latRad)-(35*eccSquared**3/3072)*Math.sin(6*latRad));
+  let easting=k0*n1*(A+(1-t+c)*A**3/6+(5-18*t+t*t+72*c-58*eccPrimeSquared)*A**5/120)+500000;
+  let northing=k0*(M+n1*Math.tan(latRad)*(A*A/2+(5-t+9*c+4*c*c)*A**4/24+(61-58*t+t*t+600*c-330*eccPrimeSquared)*A**6/720));
+  if(hemisphere==="S" && northing<0) northing+=10000000;
+  return {easting,northing};
 }
 
 function drawRaster(ctx,img,bounds,px,py,s,alpha){
@@ -388,7 +471,7 @@ document.getElementById("kValue").addEventListener("input",()=>{
 });
 ["angleValue","peopleFactor","equipmentFactor","targetRadius","referenceMode"].forEach(id=>document.getElementById(id).addEventListener("input",()=>run(true)));
 ["dxfUnit"].forEach(id=>document.getElementById(id).addEventListener("input",()=>{viewBounds=null; drawMap();}));
-["showOrtho","showTopo","showRadius"].forEach(id=>document.getElementById(id).addEventListener("input",drawMap));
+["showSatellite","showOrtho","showTopo","showRadius","utmZone","utmHemisphere"].forEach(id=>document.getElementById(id).addEventListener("input",drawMap));
 document.getElementById("zoomIn").onclick=()=>zoomView(.72);
 document.getElementById("zoomOut").onclick=()=>zoomView(1.38);
 document.getElementById("resetView").onclick=()=>{viewBounds=getInitialBounds(); drawMap();};

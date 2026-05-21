@@ -59,6 +59,13 @@
               <option value="0.01">centímetros</option>
             </select>
           </label>
+          <label>Zona UTM<input id="utmZone" type="number" value="23" min="1" max="60" step="1"></label>
+          <label>Hemisfério
+            <select id="utmHemisphere">
+              <option value="S">Sul</option>
+              <option value="N">Norte</option>
+            </select>
+          </label>
         </div>
       </section>
 
@@ -120,6 +127,7 @@
             <button id="zoomIn" class="secondary">Zoom +</button>
             <button id="zoomOut" class="secondary">Zoom -</button>
             <button id="resetView" class="secondary">Resetar</button>
+            <label class="toggle"><input id="showSatellite" type="checkbox" checked> Satélite</label>
             <label class="toggle"><input id="showOrtho" type="checkbox" checked> Ortomosaico</label>
             <label class="toggle"><input id="showTopo" type="checkbox" checked> Curvas</label>
             <label class="toggle"><input id="showRadius" type="checkbox" checked> Raios</label>
@@ -131,6 +139,7 @@
           <span><i class="equip"></i> Equipamentos</span>
           <span><i class="people"></i> Pessoas</span>
           <span><i class="topo"></i> Curvas de nível</span>
+          <span><i class="sat"></i> Satélite</span>
         </div>
         <div id="spatialStats" class="stats"></div>
       </section>
