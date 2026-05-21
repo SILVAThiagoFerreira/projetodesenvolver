@@ -361,9 +361,11 @@ function renderTechnicalNotes(valid,ref,people,equipment){
   const critical=[...valid].sort((a,b)=>b.lmax_previsto_m-a.lmax_previsto_m)[0];
   const avgBurden=mean(valid.map(r=>r.afastamento_m)), avgSpacing=mean(valid.map(r=>r.espacamento_m));
   const lowStemming=valid.filter(r=>r.razao_tampao_profundidade<0.25).length;
+  const k=n(document.getElementById("kValue").value);
   document.getElementById("technicalNotes").innerHTML=[
     ["Furo crítico",`${critical.id_furo}: maior Lmax previsto (${fmt(critical.lmax_previsto_m)} m).`],
     ["Malha média",`Afastamento ${fmt(avgBurden)} m; espaçamento ${fmt(avgSpacing)} m.`],
+    ["K selecionado",`K=${fmt(k,1)}. Atenção: Lmax varia com K²; reduzir K pela metade reduz Lmax para cerca de 1/4.`],
     ["Confinamento",lowStemming?`${lowStemming} furo(s) com tampão/profundidade < 0,25.`:"Relação tampão/profundidade sem alerta crítico."]
   ].map(([k,v])=>`<div><strong>${k}</strong><span>${v}</span></div>`).join("");
 }
@@ -376,7 +378,15 @@ document.getElementById("downloadReport").onclick=()=>download("relatorio_terroc
 document.getElementById("dxfFile").onchange=async e=>{const file=e.target.files[0]; if(!file)return; contour=parseDxf(await file.text(),n(document.getElementById("dxfUnit").value)); viewBounds=getInitialBounds(); run(true); renderSpatialStats();};
 document.getElementById("geotiffFile").onchange=async e=>{const file=e.target.files[0]; if(file){await readGeoTiff(file); viewBounds=getInitialBounds(); drawMap();}};
 document.getElementById("orthoFile").onchange=async e=>{const file=e.target.files[0]; if(file){await readGeoTiffBuffer(await file.arrayBuffer(),"ortho"); viewBounds=getInitialBounds(); drawMap();}};
-["kValue","angleValue","peopleFactor","equipmentFactor","targetRadius","referenceMode"].forEach(id=>document.getElementById(id).addEventListener("input",()=>run(true)));
+document.getElementById("kPreset").addEventListener("input",e=>{
+  if(e.target.value !== "custom") document.getElementById("kValue").value = e.target.value;
+  run(true);
+});
+document.getElementById("kValue").addEventListener("input",()=>{
+  document.getElementById("kPreset").value = "custom";
+  run(true);
+});
+["angleValue","peopleFactor","equipmentFactor","targetRadius","referenceMode"].forEach(id=>document.getElementById(id).addEventListener("input",()=>run(true)));
 ["dxfUnit"].forEach(id=>document.getElementById(id).addEventListener("input",()=>{viewBounds=null; drawMap();}));
 ["showOrtho","showTopo","showRadius"].forEach(id=>document.getElementById(id).addEventListener("input",drawMap));
 document.getElementById("zoomIn").onclick=()=>zoomView(.72);

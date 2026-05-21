@@ -12,7 +12,7 @@ h1{margin:0 0 4px;font-size:26px;letter-spacing:0}.topbar p{margin:0;color:#d9ee
 .panel-title{display:flex;align-items:center;gap:10px;margin-bottom:10px}.panel-title span{background:#e8f3f1;color:var(--deep);border:1px solid #c7ddda;border-radius:5px;padding:4px 7px;font-size:12px;font-weight:800}.panel-title h2{margin:0;font-size:18px;color:var(--deep)}
 h3{margin:20px 0 10px;font-size:15px;color:var(--deep)}.lead{margin:0 0 14px;color:var(--muted);font-size:13px;line-height:1.4}.lead.tight{margin:10px 0 0}
 label{display:grid;gap:5px;font-weight:700;font-size:12px;color:#33434a}input,select{font:inherit;padding:8px 9px;border:1px solid var(--line);border-radius:6px;background:white;min-width:0;color:var(--ink)}input:focus,select:focus{outline:2px solid rgba(0,126,122,.18);border-color:var(--brand)}
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.file-stack{display:grid;gap:10px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.form-grid label:first-child,.form-grid label:nth-child(2){grid-column:1/-1}.file-stack{display:grid;gap:10px}
 button{background:var(--brand);border:0;color:white;border-radius:6px;padding:9px 12px;font-weight:800;cursor:pointer;font-size:13px}button:hover{filter:brightness(.96)}button:disabled{background:#9ba8af;cursor:not-allowed}.secondary{background:#4d6972}.remove{background:var(--danger);padding:6px 8px}
 .actions{display:flex;gap:10px;flex-wrap:wrap}.actions.vertical{display:grid}.actions.inline{justify-content:flex-end}
 .section-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:10px}

@@ -30,7 +30,16 @@
         <p class="lead">A equação Terrock usa `K`, carga linear, tampão e ângulo. Ajuste e veja o raio no mapa.</p>
         <div class="form-grid">
           <label>Desmonte<input id="blastName" value="Fogo 01"></label>
-          <label>K Terrock<input id="kValue" type="number" value="10.5" min="0.01" step="0.1"></label>
+          <label>Preset K
+            <select id="kPreset">
+              <option value="21.9">ANFO - sulfeto (K 21,9)</option>
+              <option value="28.3">ANFO - oxidado (K 28,3)</option>
+              <option value="17.2">ENERGAN - sulfeto (K 17,2)</option>
+              <option value="22.3">ENERGAN - oxidado (K 22,3)</option>
+              <option value="custom">Personalizado</option>
+            </select>
+          </label>
+          <label>K Terrock<input id="kValue" type="number" value="21.9" min="0.01" step="0.1"></label>
           <label>Ângulo (graus)<input id="angleValue" type="number" value="45" min="1" max="89" step="1"></label>
           <label>Fator pessoas<input id="peopleFactor" type="number" value="4" min="1" step="0.1"></label>
           <label>Fator equipamentos<input id="equipmentFactor" type="number" value="2" min="1" step="0.1"></label>
