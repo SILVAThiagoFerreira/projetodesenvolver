@@ -340,10 +340,12 @@ document.getElementById("sampleBtn").onclick=()=>{holes=[]; addHole({id_furo:"F0
 document.getElementById("runBtn").onclick=run;
 document.getElementById("downloadCsv").onclick=()=>download("base_furos_terrock.csv",csv(results),"text/csv;charset=utf-8");
 document.getElementById("downloadReport").onclick=()=>download("relatorio_terrock_flyrock.html",reportHtml,"text/html;charset=utf-8");
-document.getElementById("dxfFile").onchange=async e=>{const file=e.target.files[0]; if(!file)return; contour=parseDxf(await file.text(),n(document.getElementById("dxfUnit").value)); drawMap(); renderSpatialStats();};
-document.getElementById("geotiffFile").onchange=async e=>{const file=e.target.files[0]; if(file) await readGeoTiff(file);};
-document.getElementById("orthoFile").onchange=async e=>{const file=e.target.files[0]; if(file) await readGeoTiffBuffer(await file.arrayBuffer(),"ortho");};
-["kValue","angleValue","peopleFactor","equipmentFactor","targetRadius","referenceMode","dxfUnit","showOrtho","showTopo","showRadius"].forEach(id=>document.getElementById(id).addEventListener("input",()=>{run(true); drawMap();}));
+document.getElementById("dxfFile").onchange=async e=>{const file=e.target.files[0]; if(!file)return; contour=parseDxf(await file.text(),n(document.getElementById("dxfUnit").value)); viewBounds=getInitialBounds(); run(true); renderSpatialStats();};
+document.getElementById("geotiffFile").onchange=async e=>{const file=e.target.files[0]; if(file){await readGeoTiff(file); viewBounds=getInitialBounds(); drawMap();}};
+document.getElementById("orthoFile").onchange=async e=>{const file=e.target.files[0]; if(file){await readGeoTiffBuffer(await file.arrayBuffer(),"ortho"); viewBounds=getInitialBounds(); drawMap();}};
+["kValue","angleValue","peopleFactor","equipmentFactor","targetRadius","referenceMode"].forEach(id=>document.getElementById(id).addEventListener("input",()=>run(true)));
+["dxfUnit"].forEach(id=>document.getElementById(id).addEventListener("input",()=>{viewBounds=null; drawMap();}));
+["showOrtho","showTopo","showRadius"].forEach(id=>document.getElementById(id).addEventListener("input",drawMap));
 document.getElementById("zoomIn").onclick=()=>zoomView(.72);
 document.getElementById("zoomOut").onclick=()=>zoomView(1.38);
 document.getElementById("resetView").onclick=()=>{viewBounds=getInitialBounds(); drawMap();};

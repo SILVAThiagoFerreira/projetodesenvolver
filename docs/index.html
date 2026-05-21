@@ -13,120 +13,148 @@
     <div class="brand">
       <img src="./assets/vale-logo-white.png" alt="Vale" />
       <div>
-      <h1>Projeto Desenvolver - Terrock Flyrock</h1>
-      <p>Entrada manual dos parâmetros do fogo, DXF do contorno, GeoTIFF de curva/superfície e raio de segurança.</p>
+        <h1>Projeto Desenvolver - Terrock Flyrock</h1>
+        <p>Simulação local de zona de segurança com parâmetros de fogo, ortomosaico, curvas de nível e contorno DXF.</p>
       </div>
     </div>
-    <span class="badge">GitHub Pages</span>
+    <span class="badge">Ferramenta local</span>
   </header>
 
-  <main>
-    <section class="panel">
-      <h2>1. Parâmetros gerais</h2>
-      <p class="lead">Preencha os parâmetros do fogo diretamente. O cálculo usa a equação Terrock com `K` informado pelo responsável pela análise.</p>
-      <div class="grid four">
-        <label>Desmonte<input id="blastName" value="Fogo 01"></label>
-        <label>K Terrock<input id="kValue" type="number" value="10.5" min="0.01" step="0.1"></label>
-        <label>Ângulo de lançamento (graus)<input id="angleValue" type="number" value="45" min="1" max="89" step="1"></label>
-        <label>Fator pessoas<input id="peopleFactor" type="number" value="4" min="1" step="0.1"></label>
-        <label>Fator equipamentos<input id="equipmentFactor" type="number" value="2" min="1" step="0.1"></label>
-        <label>Raio alvo pessoas (m)<input id="targetRadius" type="number" value="600" min="1" step="10"></label>
-        <label>Referência Lmax
-          <select id="referenceMode">
-            <option value="max">Máximo previsto</option>
-            <option value="p95">P95 previsto</option>
-            <option value="p90">P90 previsto</option>
-            <option value="mean">Média prevista</option>
-          </select>
-        </label>
-        <label>Unidade DXF
-          <select id="dxfUnit">
-            <option value="1">metros</option>
-            <option value="0.001">milímetros</option>
-            <option value="0.01">centímetros</option>
-          </select>
-        </label>
-      </div>
-    </section>
+  <main class="workspace">
+    <aside class="sidebar">
+      <section class="panel">
+        <div class="panel-title">
+          <span>01</span>
+          <h2>Parâmetros</h2>
+        </div>
+        <p class="lead">A equação Terrock usa `K`, carga linear, tampão e ângulo. Ajuste e veja o raio no mapa.</p>
+        <div class="form-grid">
+          <label>Desmonte<input id="blastName" value="Fogo 01"></label>
+          <label>K Terrock<input id="kValue" type="number" value="10.5" min="0.01" step="0.1"></label>
+          <label>Ângulo (graus)<input id="angleValue" type="number" value="45" min="1" max="89" step="1"></label>
+          <label>Fator pessoas<input id="peopleFactor" type="number" value="4" min="1" step="0.1"></label>
+          <label>Fator equipamentos<input id="equipmentFactor" type="number" value="2" min="1" step="0.1"></label>
+          <label>Raio alvo pessoas (m)<input id="targetRadius" type="number" value="600" min="1" step="10"></label>
+          <label>Referência Lmax
+            <select id="referenceMode">
+              <option value="max">Máximo previsto</option>
+              <option value="p95">P95 previsto</option>
+              <option value="p90">P90 previsto</option>
+              <option value="mean">Média prevista</option>
+            </select>
+          </label>
+          <label>Unidade DXF
+            <select id="dxfUnit">
+              <option value="1">metros</option>
+              <option value="0.001">milímetros</option>
+              <option value="0.01">centímetros</option>
+            </select>
+          </label>
+        </div>
+      </section>
 
-    <section class="panel">
-      <div class="section-head">
-        <h2>2. Furos do plano de fogo</h2>
-        <button id="addHoleBtn">Adicionar furo</button>
-      </div>
-      <div class="table-wrap">
-        <table id="holesTable">
-          <thead>
-            <tr>
-              <th>Litologia</th><th>Densidade (g/cm³)</th><th>Ø Furo (pol)</th><th>ID furo</th><th>Profund. (m)</th>
-              <th>Afast. (m)</th><th>Espaç. (m)</th><th>Tampão Prog. (m)</th><th>Tampão Real (m)</th>
-              <th>Carga Prog. (kg)</th><th>Carga Realiz. (kg)</th><th>Massa (Kt)</th><th>Razão Carga</th><th></th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div class="actions">
-        <button id="runBtn">Calcular Terrock e raios</button>
-        <button id="sampleBtn" class="secondary">Preencher exemplo</button>
-      </div>
-    </section>
+      <section class="panel">
+        <div class="panel-title">
+          <span>02</span>
+          <h2>Camadas</h2>
+        </div>
+        <div class="file-stack">
+          <label>Ortomosaico GeoTIFF<input id="orthoFile" type="file" accept=".tif,.tiff"></label>
+          <label>Curvas/superfície GeoTIFF<input id="geotiffFile" type="file" accept=".tif,.tiff"></label>
+          <label>Contorno DXF<input id="dxfFile" type="file" accept=".dxf"></label>
+        </div>
+        <p class="lead tight" id="exampleStatus">Carregando exemplo: ortomosaico, curvas de nível e plano de perfuração.</p>
+      </section>
 
-    <section class="panel">
-      <h2>3. Topografia e contorno</h2>
-      <div class="grid two">
-        <label>GeoTIFF da curva/superfície de nível<input id="geotiffFile" type="file" accept=".tif,.tiff"></label>
-        <label>Ortomosaico GeoTIFF<input id="orthoFile" type="file" accept=".tif,.tiff"></label>
-        <label>DXF com contorno do plano de perfuração<input id="dxfFile" type="file" accept=".dxf"></label>
-      </div>
-      <div class="map-toolbar">
-        <button id="zoomIn" class="secondary">Zoom +</button>
-        <button id="zoomOut" class="secondary">Zoom -</button>
-        <button id="resetView" class="secondary">Resetar vista</button>
-        <label class="toggle"><input id="showOrtho" type="checkbox" checked> Ortomosaico</label>
-        <label class="toggle"><input id="showTopo" type="checkbox" checked> Curvas</label>
-        <label class="toggle"><input id="showRadius" type="checkbox" checked> Raios</label>
-      </div>
-      <p class="lead" id="exampleStatus">Carregando exemplo: ortomosaico, curvas de nível e plano de perfuração.</p>
-      <canvas id="mapCanvas" width="980" height="420"></canvas>
-      <div class="legend">
-        <span><i class="poly"></i> Poligonal do desmonte</span>
-        <span><i class="equip"></i> Raio equipamentos</span>
-        <span><i class="people"></i> Raio pessoas</span>
-        <span><i class="topo"></i> Curvas de nível</span>
-      </div>
-      <div id="spatialStats" class="stats"></div>
-    </section>
+      <section class="panel">
+        <div class="panel-title">
+          <span>03</span>
+          <h2>Exportar</h2>
+        </div>
+        <div class="actions vertical">
+          <button id="downloadCsv" disabled>Baixar CSV</button>
+          <button id="downloadReport" disabled>Baixar relatório HTML</button>
+        </div>
+      </section>
+    </aside>
 
-    <section class="metrics">
-      <div><strong id="holeCount">0</strong><span>furos válidos</span></div>
-      <div><strong id="lmaxRef">-</strong><span>Lmax referência</span></div>
-      <div><strong id="peopleRadius">-</strong><span>raio pessoas</span></div>
-      <div><strong id="equipmentRadius">-</strong><span>raio equipamentos</span></div>
-    </section>
-
-    <section class="panel">
-      <h2>4. Resultados técnicos</h2>
-      <div class="split">
-        <canvas id="lmaxChart" height="260"></canvas>
-        <canvas id="stemmingChart" height="260"></canvas>
+    <section class="mainstage">
+      <div class="metrics">
+        <div><strong id="holeCount">0</strong><span>furos válidos</span></div>
+        <div><strong id="lmaxRef">-</strong><span>Lmax referência</span></div>
+        <div><strong id="peopleRadius">-</strong><span>raio pessoas</span></div>
+        <div><strong id="equipmentRadius">-</strong><span>raio equipamentos</span></div>
       </div>
-      <h3>Resultados por furo</h3>
-      <div id="resultsTable"></div>
-      <h3>Desenho inverso para raio alvo</h3>
-      <div id="inverseTable"></div>
-    </section>
 
-    <section class="panel">
-      <h2>5. Exportações</h2>
-      <div class="actions">
-        <button id="downloadCsv" disabled>Baixar CSV</button>
-        <button id="downloadReport" disabled>Baixar relatório HTML</button>
-      </div>
-    </section>
+      <section class="panel map-panel">
+        <div class="section-head">
+          <div class="panel-title">
+            <span>Mapa</span>
+            <h2>Zona de segurança</h2>
+          </div>
+          <div class="map-toolbar">
+            <button id="zoomIn" class="secondary">Zoom +</button>
+            <button id="zoomOut" class="secondary">Zoom -</button>
+            <button id="resetView" class="secondary">Resetar</button>
+            <label class="toggle"><input id="showOrtho" type="checkbox" checked> Ortomosaico</label>
+            <label class="toggle"><input id="showTopo" type="checkbox" checked> Curvas</label>
+            <label class="toggle"><input id="showRadius" type="checkbox" checked> Raios</label>
+          </div>
+        </div>
+        <canvas id="mapCanvas" width="1280" height="680"></canvas>
+        <div class="legend">
+          <span><i class="poly"></i> Poligonal</span>
+          <span><i class="equip"></i> Equipamentos</span>
+          <span><i class="people"></i> Pessoas</span>
+          <span><i class="topo"></i> Curvas de nível</span>
+        </div>
+        <div id="spatialStats" class="stats"></div>
+      </section>
 
-    <section class="disclaimer">
-      <strong>Aviso técnico:</strong> ferramenta de análise e padronização. Os resultados dependem dos parâmetros informados, da qualidade do contorno/topografia e da validação contínua em campo. Não substitui responsável técnico habilitado.
+      <section class="panel">
+        <div class="section-head">
+          <div class="panel-title">
+            <span>Furos</span>
+            <h2>Plano de fogo</h2>
+          </div>
+          <div class="actions inline">
+            <button id="addHoleBtn">Adicionar furo</button>
+            <button id="sampleBtn" class="secondary">Preencher exemplo</button>
+            <button id="runBtn">Calcular</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="holesTable">
+            <thead>
+              <tr>
+                <th>Litologia</th><th>Densidade</th><th>Ø Furo</th><th>ID</th><th>Prof.</th>
+                <th>Afast.</th><th>Espaç.</th><th>Tampão Prog.</th><th>Tampão Real</th>
+                <th>Carga Prog.</th><th>Carga Realiz.</th><th>Massa Kt</th><th>Razão</th><th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <span>Resultados</span>
+          <h2>Análise técnica</h2>
+        </div>
+        <div class="split">
+          <canvas id="lmaxChart" height="240"></canvas>
+          <canvas id="stemmingChart" height="240"></canvas>
+        </div>
+        <h3>Resultados por furo</h3>
+        <div id="resultsTable"></div>
+        <h3>Desenho inverso para raio alvo</h3>
+        <div id="inverseTable"></div>
+      </section>
+
+      <section class="disclaimer">
+        <strong>Aviso técnico:</strong> ferramenta de análise e padronização. Os resultados dependem dos parâmetros informados, da qualidade do contorno/topografia e da validação contínua em campo. Não substitui responsável técnico habilitado.
+      </section>
     </section>
   </main>
   <script src="./app.js"></script>
