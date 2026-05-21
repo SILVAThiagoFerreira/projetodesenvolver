@@ -18,9 +18,9 @@ let reportHtml = "";
 
 const fields = [
   ["litologia","text","ITABIRITO"],["densidade_litologica_g_cm3","number","2.7"],["diametro_furo_pol","number","6.5"],
-  ["id_furo","text","F001"],["profundidade_m","number","12"],["afastamento_m","number","4"],["espacamento_m","number","5"],
-  ["tampao_programado_m","number","3.5"],["tampao_real_m","number","3.5"],["carga_programada_kg","number","180"],
-  ["carga_realizada_kg","number","175"],["massa_desmontada_kt","number","0.001"],["razao_carga","number","0.75"]
+  ["profundidade_m","number","12"],["afastamento_m","number","4"],["espacamento_m","number","5"],
+  ["tampao_real_m","number","3.5"],["carga_maxima_espera_kg","number","175"],["massa_desmontada_kt","number","10"],
+  ["razao_carga","number","0.75"]
 ];
 
 function n(v){const x=Number(String(v ?? "").replace(",",".")); return Number.isFinite(x)?x:NaN}
@@ -39,8 +39,8 @@ function addHole(seed={}){
   renderHoles();
 }
 
-function emptyHole(id=""){
-  return Object.fromEntries(fields.map(([key]) => [key, key === "id_furo" ? id : ""]));
+function emptyHole(){
+  return Object.fromEntries(fields.map(([key]) => [key, ""]));
 }
 
 function renderHoles(){
@@ -52,7 +52,7 @@ function renderHoles(){
       const td=document.createElement("td");
       const input=document.createElement("input");
       input.type=type; input.value=hole[key] ?? ""; input.dataset.idx=idx; input.dataset.key=key;
-      if(key==="id_furo") input.className="id"; if(key==="litologia") input.className="lito";
+      if(key==="litologia") input.className="lito";
       input.oninput=()=>{holes[idx][key]=input.value; run(true)};
       td.appendChild(input); tr.appendChild(td);
     });
@@ -63,14 +63,13 @@ function renderHoles(){
 
 function validateAndCompute(h,k,angle){
   const r={...h};
-  ["densidade_litologica_g_cm3","diametro_furo_pol","profundidade_m","afastamento_m","espacamento_m","tampao_programado_m","tampao_real_m","carga_programada_kg","carga_realizada_kg","massa_desmontada_kt","razao_carga"].forEach(c=>r[c]=n(r[c]));
+  ["densidade_litologica_g_cm3","diametro_furo_pol","profundidade_m","afastamento_m","espacamento_m","tampao_real_m","carga_maxima_espera_kg","massa_desmontada_kt","razao_carga"].forEach(c=>r[c]=n(r[c]));
   const errors=[];
   if(!r.litologia) errors.push("litologia vazia");
-  if(!r.id_furo) errors.push("id_furo vazio");
   if(!(r.profundidade_m>0)) errors.push("profundidade invalida");
   if(!(r.tampao_real_m>0)) errors.push("tampao real invalido");
   if(!(r.tampao_real_m<r.profundidade_m)) errors.push("tampao deve ser menor que profundidade");
-  if(!(r.carga_realizada_kg>0)) errors.push("carga realizada invalida");
+  if(!(r.carga_maxima_espera_kg>0)) errors.push("CME invalida");
   if(!(r.afastamento_m>0)) errors.push("afastamento invalido");
   if(!(r.espacamento_m>0)) errors.push("espacamento invalido");
   if(!(angle>0 && angle<90)) errors.push("angulo invalido");
@@ -78,13 +77,14 @@ function validateAndCompute(h,k,angle){
   r.validation_status=errors.length?"invalid":"valid";
   if(!errors.length){
     r.coluna_carregada_m=r.profundidade_m-r.tampao_real_m;
-    r.carga_linear_kg_m=r.carga_realizada_kg/r.coluna_carregada_m;
+    r.carga_linear_kg_m=r.carga_maxima_espera_kg/r.coluna_carregada_m;
     r.area_malha_m2=r.afastamento_m*r.espacamento_m;
     r.volume_estimado_m3=r.area_malha_m2*r.profundidade_m;
     r.massa_estimativa_t=r.volume_estimado_m3*r.densidade_litologica_g_cm3;
-    r.razao_carga_calculada_kg_t=r.carga_realizada_kg/r.massa_estimativa_t;
+    r.massa_desmontada_t=r.massa_desmontada_kt*1000;
+    r.razao_carga_calculada_kg_t=r.carga_maxima_espera_kg/r.massa_desmontada_t;
     r.razao_tampao_profundidade=r.tampao_real_m/r.profundidade_m;
-    r.energia_relativa=r.carga_realizada_kg/r.tampao_real_m;
+    r.energia_relativa=r.carga_maxima_espera_kg/r.tampao_real_m;
     r.tampao_efetivo_m=r.tampao_real_m;
     r.indice_confinamento=r.tampao_efetivo_m/r.carga_linear_kg_m;
     r.lmax_previsto_m=terrockLmax(k,r.carga_linear_kg_m,r.tampao_efetivo_m,angle);
@@ -107,11 +107,11 @@ function inverseRows(valid,k,angle,target,peopleFactor){
     const clNec=r.carga_linear_kg_m*Math.pow(ratio,1/1.3);
     const cargaNec=clNec*r.coluna_carregada_m;
     return {
-      id_furo:r.id_furo, litologia:r.litologia, lmax_atual_m:r.lmax_previsto_m, raio_atual_pessoas_m:r.raio_pessoas_m,
+      litologia:r.litologia, lmax_atual_m:r.lmax_previsto_m, raio_atual_pessoas_m:r.raio_pessoas_m,
       raio_alvo_pessoas_m:target, lmax_permitido_m:allowed, tampao_atual_m:r.tampao_real_m,
       tampao_necessario_m:tampaoNec, aumento_tampao_m:Math.max(0,tampaoNec-r.tampao_real_m),
-      carga_atual_kg:r.carga_realizada_kg, carga_necessaria_kg:cargaNec,
-      reducao_carga_pct:Math.max(0,(1-cargaNec/r.carga_realizada_kg)*100),
+      cme_atual_kg:r.carga_maxima_espera_kg, cme_necessaria_kg:cargaNec,
+      reducao_cme_pct:Math.max(0,(1-cargaNec/r.carga_maxima_espera_kg)*100),
       alerta:tampaoNec<r.profundidade_m && cargaNec>0 ? "viavel como triagem" : "requer redesenho tecnico"
     };
   });
@@ -410,18 +410,18 @@ function run(silent=false){
   document.getElementById("peopleRadius").textContent=`${fmt(currentRadius)} m`;
   document.getElementById("equipmentRadius").textContent=`${fmt(Number.isFinite(ref)?ref*equipment:NaN)} m`;
   updateEquationPanel(valid,k,angle,ref,people,equipment,mode);
-  const resultKeys=["id_furo","litologia","coluna_carregada_m","carga_linear_kg_m","razao_tampao_profundidade","lmax_previsto_m","raio_equipamentos_m","raio_pessoas_m","validation_status","validation_errors"];
+  const resultKeys=["litologia","coluna_carregada_m","carga_linear_kg_m","massa_desmontada_kt","razao_carga_calculada_kg_t","razao_tampao_profundidade","lmax_previsto_m","raio_equipamentos_m","raio_pessoas_m","validation_status","validation_errors"];
   document.getElementById("resultsTable").innerHTML=table(results,resultKeys);
   const inverse=inverseRows(valid,k,angle,n(document.getElementById("targetRadius").value),people);
-  document.getElementById("inverseTable").innerHTML=table(inverse,["id_furo","litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","aumento_tampao_m","carga_necessaria_kg","reducao_carga_pct","alerta"]);
+  document.getElementById("inverseTable").innerHTML=table(inverse,["litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","aumento_tampao_m","cme_necessaria_kg","reducao_cme_pct","alerta"]);
   renderTechnicalNotes(valid,ref,people,equipment);
   drawMap();
   charts.forEach(c=>c.destroy());
   charts=[
-    new Chart(document.getElementById("lmaxChart"),{type:"bar",data:{labels:valid.map(r=>r.id_furo),datasets:[{label:"Lmax previsto (m)",data:lmax,backgroundColor:"#007e7a"}]},options:{plugins:{legend:{display:false}}}}),
+    new Chart(document.getElementById("lmaxChart"),{type:"bar",data:{labels:valid.map((r,i)=>r.litologia || `Condição ${i+1}`),datasets:[{label:"Lmax previsto (m)",data:lmax,backgroundColor:"#007e7a"}]},options:{plugins:{legend:{display:false}}}}),
     new Chart(document.getElementById("stemmingChart"),{type:"scatter",data:{datasets:[{label:"Lmax x tampão",data:valid.map(r=>({x:r.tampao_real_m,y:r.lmax_previsto_m}))}]},options:{scales:{x:{title:{display:true,text:"Tampão real (m)"}},y:{title:{display:true,text:"Lmax (m)"}}}}})
   ];
-  reportHtml=`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><body><h1>Relatório Terrock Flyrock</h1><p>Desmonte: ${document.getElementById("blastName").value}. K=${k}. Ângulo=${angle}°. Lmax referência=${fmt(ref)} m. Raio pessoas=${fmt(ref*people)} m.</p><p>Ferramenta de apoio técnico; não substitui responsável técnico habilitado.</p><h2>Resultados</h2>${table(results,resultKeys)}<h2>Desenho inverso</h2>${table(inverse,["id_furo","litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","carga_necessaria_kg","alerta"])}</body></html>`;
+  reportHtml=`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><body><h1>Relatório Terrock Flyrock</h1><p>Desmonte: ${document.getElementById("blastName").value}. K=${k}. Ângulo=${angle}°. Lmax referência=${fmt(ref)} m. Raio pessoas=${fmt(ref*people)} m.</p><p>Ferramenta de apoio técnico; não substitui responsável técnico habilitado.</p><h2>Resultados</h2>${table(results,resultKeys)}<h2>Desenho inverso</h2>${table(inverse,["litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","cme_necessaria_kg","alerta"])}</body></html>`;
   document.getElementById("downloadCsv").disabled=false; document.getElementById("downloadReport").disabled=false;
   document.getElementById("downloadKml").disabled=!contour.length;
   document.getElementById("openEarth").disabled=!contour.length;
@@ -471,9 +471,9 @@ function updateEquationPanel(valid,k,angle,ref,people,equipment,mode){
   }
   const critical=[...valid].sort((a,b)=>b.lmax_previsto_m-a.lmax_previsto_m)[0];
   const modeLabel={max:"máximo",p95:"P95",p90:"P90",mean:"média"}[mode] || mode;
-  document.getElementById("criticalHole").textContent=`${critical.id_furo} · ${fmt(critical.lmax_previsto_m)} m`;
+  document.getElementById("criticalHole").textContent=`${critical.litologia || "Desmonte"} · ${fmt(critical.lmax_previsto_m)} m`;
   document.getElementById("equationSubstitution").textContent=
-    `Furo ${critical.id_furo}: Lmax = (${fmt(k,2)}² / ${gravity}) × (${fmt(critical.carga_linear_kg_m,2)} / ${fmt(critical.tampao_efetivo_m,2)})^1,3 × sen²(${fmt(angle,1)}°) = ${fmt(critical.lmax_previsto_m)} m. `+
+    `Desmonte (${critical.litologia || "sem litologia"}): Lmax = (${fmt(k,2)}² / ${gravity}) × (${fmt(critical.carga_linear_kg_m,2)} / ${fmt(critical.tampao_efetivo_m,2)})^1,3 × sen²(${fmt(angle,1)}°) = ${fmt(critical.lmax_previsto_m)} m. `+
     `Referência ${modeLabel}: ${fmt(ref)} m; pessoas = ${fmt(ref)} × ${fmt(people,1)} = ${fmt(ref*people)} m; equipamentos = ${fmt(ref)} × ${fmt(equipment,1)} = ${fmt(ref*equipment)} m.`;
 }
 
@@ -484,15 +484,15 @@ function renderTechnicalNotes(valid,ref,people,equipment){
   const lowStemming=valid.filter(r=>r.razao_tampao_profundidade<0.25).length;
   const k=n(document.getElementById("kValue").value);
   document.getElementById("technicalNotes").innerHTML=[
-    ["Furo crítico",`${critical.id_furo}: maior Lmax previsto (${fmt(critical.lmax_previsto_m)} m).`],
+    ["Condição crítica",`${critical.litologia || "Desmonte"}: maior Lmax previsto (${fmt(critical.lmax_previsto_m)} m).`],
     ["Malha média",`Afastamento ${fmt(avgBurden)} m; espaçamento ${fmt(avgSpacing)} m.`],
     ["K selecionado",`K=${fmt(k,1)}. Atenção: Lmax varia com K²; reduzir K pela metade reduz Lmax para cerca de 1/4.`],
     ["Confinamento",lowStemming?`${lowStemming} furo(s) com tampão/profundidade < 0,25.`:"Relação tampão/profundidade sem alerta crítico."]
   ].map(([k,v])=>`<div><strong>${k}</strong><span>${v}</span></div>`).join("");
 }
 
-document.getElementById("addHoleBtn").onclick=()=>addHole({id_furo:`F${String(holes.length+1).padStart(3,"0")}`});
-document.getElementById("sampleBtn").onclick=()=>{holes=[]; addHole({id_furo:"F001",litologia:"SULFETO",densidade_litologica_g_cm3:2.8,profundidade_m:12,tampao_real_m:4.1,carga_realizada_kg:170}); addHole({id_furo:"F002",litologia:"OXIDADO",densidade_litologica_g_cm3:2.4,profundidade_m:10,tampao_real_m:5,carga_realizada_kg:135});};
+document.getElementById("addHoleBtn").onclick=()=>addHole(emptyHole());
+document.getElementById("sampleBtn").onclick=()=>{holes=[]; addHole({litologia:"SULFETO",densidade_litologica_g_cm3:2.8,diametro_furo_pol:6.5,profundidade_m:12,afastamento_m:4,espacamento_m:5,tampao_real_m:4.1,carga_maxima_espera_kg:170,massa_desmontada_kt:10,razao_carga:0.75}); addHole({litologia:"OXIDADO",densidade_litologica_g_cm3:2.4,diametro_furo_pol:6.5,profundidade_m:10,afastamento_m:4,espacamento_m:5,tampao_real_m:5,carga_maxima_espera_kg:135,massa_desmontada_kt:10,razao_carga:0.75});};
 document.getElementById("runBtn").onclick=run;
 document.getElementById("downloadCsv").onclick=()=>download("base_furos_terrock.csv",csv(results),"text/csv;charset=utf-8");
 document.getElementById("downloadReport").onclick=()=>download("relatorio_terrock_flyrock.html",reportHtml,"text/html;charset=utf-8");
@@ -544,5 +544,5 @@ async function loadExampleAssets(){
   }
 }
 
-addHole();
+addHole(emptyHole());
 loadExampleAssets();
