@@ -39,6 +39,10 @@ function addHole(seed={}){
   renderHoles();
 }
 
+function emptyHole(id=""){
+  return Object.fromEntries(fields.map(([key]) => [key, key === "id_furo" ? id : ""]));
+}
+
 function renderHoles(){
   const tbody = document.querySelector("#holesTable tbody");
   tbody.innerHTML = "";
@@ -523,22 +527,21 @@ window.addEventListener("mousemove",e=>{if(!isDragging||!dragStart)return; const
 
 async function loadExampleAssets(){
   try{
-    const [surface,ortho,dxf]=await Promise.all([
+    const [surface,ortho]=await Promise.all([
       fetch("./assets/examples/curvas-de-nivel.tif").then(r=>r.arrayBuffer()),
-      fetch("./assets/examples/ortomosaico.tif").then(r=>r.arrayBuffer()),
-      fetch("./assets/examples/plano-de-perfuracao.dxf").then(r=>r.text())
+      fetch("./assets/examples/ortomosaico.tif").then(r=>r.arrayBuffer())
     ]);
     await readGeoTiffBuffer(ortho,"ortho");
     await readGeoTiffBuffer(surface,"surface");
-    contour=parseDxf(dxf,n(document.getElementById("dxfUnit").value));
     viewBounds=getInitialBounds();
-    document.getElementById("exampleStatus").textContent="Exemplo carregado: ortomosaico, curvas de nível e plano de perfuração. Arraste o mapa e use o scroll para zoom.";
+    document.getElementById("exampleStatus").textContent="Ortomosaico e curvas carregados. Preencha os furos manualmente; importe DXF apenas se quiser desenhar a poligonal.";
     renderSpatialStats();
-    run(true);
+    drawMap();
   }catch(err){
-    document.getElementById("exampleStatus").textContent="Não foi possível carregar o exemplo automaticamente. Use os campos acima para importar GeoTIFF, ortomosaico e DXF.";
+    document.getElementById("exampleStatus").textContent="Preencha os furos manualmente. Use os campos acima se quiser importar GeoTIFF, ortomosaico ou DXF.";
   }
 }
 
-addHole();
+holes.push(emptyHole("F001"));
+renderHoles();
 loadExampleAssets();
