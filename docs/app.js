@@ -26,7 +26,9 @@ function n(v){const x=Number(String(v ?? "").replace(",",".")); return Number.is
 function fmt(v,d=2){return Number.isFinite(v)?Number(v).toFixed(d):"-"}
 function percentile(a,p){const x=a.filter(Number.isFinite).sort((u,v)=>u-v); if(!x.length)return NaN; const i=(x.length-1)*p, lo=Math.floor(i), hi=Math.ceil(i); return x[lo]+(x[hi]-x[lo])*(i-lo)}
 function mean(a){const x=a.filter(Number.isFinite); return x.length?x.reduce((s,v)=>s+v,0)/x.length:NaN}
-function terrockLmax(k,cl,ds,angle){return (k*k/gravity)*Math.pow(Math.sqrt(cl)/Math.sqrt(ds),2.6)*Math.pow(Math.sin(angle*Math.PI/180),2)}
+function terrockLmax(k,cl,ds,angle){
+  return (k*k/gravity)*Math.pow(cl/ds,1.3)*Math.pow(Math.sin(angle*Math.PI/180),2);
+}
 function csv(rows){const keys=Object.keys(rows[0]||{}); return [keys.join(";"),...rows.map(r=>keys.map(k=>String(r[k]??"").replaceAll(";"," ")).join(";"))].join("\n")}
 function download(name,content,type){const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click()}
 
@@ -78,7 +80,9 @@ function validateAndCompute(h,k,angle){
     r.razao_carga_calculada_kg_t=r.carga_realizada_kg/r.massa_estimativa_t;
     r.razao_tampao_profundidade=r.tampao_real_m/r.profundidade_m;
     r.energia_relativa=r.carga_realizada_kg/r.tampao_real_m;
-    r.lmax_previsto_m=terrockLmax(k,r.carga_linear_kg_m,r.tampao_real_m,angle);
+    r.tampao_efetivo_m=r.tampao_real_m;
+    r.indice_confinamento=r.tampao_efetivo_m/r.carga_linear_kg_m;
+    r.lmax_previsto_m=terrockLmax(k,r.carga_linear_kg_m,r.tampao_efetivo_m,angle);
     r.raio_pessoas_m=r.lmax_previsto_m*n(document.getElementById("peopleFactor").value);
     r.raio_equipamentos_m=r.lmax_previsto_m*n(document.getElementById("equipmentFactor").value);
   }
@@ -321,10 +325,12 @@ function run(silent=false){
   document.getElementById("lmaxRef").textContent=`${fmt(ref)} m`;
   document.getElementById("peopleRadius").textContent=`${fmt(currentRadius)} m`;
   document.getElementById("equipmentRadius").textContent=`${fmt(Number.isFinite(ref)?ref*equipment:NaN)} m`;
+  updateEquationPanel(valid,k,angle,ref,people,equipment,mode);
   const resultKeys=["id_furo","litologia","coluna_carregada_m","carga_linear_kg_m","razao_tampao_profundidade","lmax_previsto_m","raio_equipamentos_m","raio_pessoas_m","validation_status","validation_errors"];
   document.getElementById("resultsTable").innerHTML=table(results,resultKeys);
   const inverse=inverseRows(valid,k,angle,n(document.getElementById("targetRadius").value),people);
   document.getElementById("inverseTable").innerHTML=table(inverse,["id_furo","litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","aumento_tampao_m","carga_necessaria_kg","reducao_carga_pct","alerta"]);
+  renderTechnicalNotes(valid,ref,people,equipment);
   drawMap();
   charts.forEach(c=>c.destroy());
   charts=[
@@ -333,6 +339,33 @@ function run(silent=false){
   ];
   reportHtml=`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><body><h1>Relatório Terrock Flyrock</h1><p>Desmonte: ${document.getElementById("blastName").value}. K=${k}. Ângulo=${angle}°. Lmax referência=${fmt(ref)} m. Raio pessoas=${fmt(ref*people)} m.</p><p>Ferramenta de apoio técnico; não substitui responsável técnico habilitado.</p><h2>Resultados</h2>${table(results,resultKeys)}<h2>Desenho inverso</h2>${table(inverse,["id_furo","litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","carga_necessaria_kg","alerta"])}</body></html>`;
   document.getElementById("downloadCsv").disabled=false; document.getElementById("downloadReport").disabled=false;
+}
+
+function updateEquationPanel(valid,k,angle,ref,people,equipment,mode){
+  document.getElementById("equationText").textContent="Lmax = (K² / g) × (CL / DS)^1,3 × sen²(θ);  R = Lmax_ref × fator";
+  if(!valid.length){
+    document.getElementById("criticalHole").textContent="-";
+    document.getElementById("equationSubstitution").textContent="Preencha pelo menos um furo válido.";
+    return;
+  }
+  const critical=[...valid].sort((a,b)=>b.lmax_previsto_m-a.lmax_previsto_m)[0];
+  const modeLabel={max:"máximo",p95:"P95",p90:"P90",mean:"média"}[mode] || mode;
+  document.getElementById("criticalHole").textContent=`${critical.id_furo} · ${fmt(critical.lmax_previsto_m)} m`;
+  document.getElementById("equationSubstitution").textContent=
+    `Furo ${critical.id_furo}: Lmax = (${fmt(k,2)}² / ${gravity}) × (${fmt(critical.carga_linear_kg_m,2)} / ${fmt(critical.tampao_efetivo_m,2)})^1,3 × sen²(${fmt(angle,1)}°) = ${fmt(critical.lmax_previsto_m)} m. `+
+    `Referência ${modeLabel}: ${fmt(ref)} m; pessoas = ${fmt(ref)} × ${fmt(people,1)} = ${fmt(ref*people)} m; equipamentos = ${fmt(ref)} × ${fmt(equipment,1)} = ${fmt(ref*equipment)} m.`;
+}
+
+function renderTechnicalNotes(valid,ref,people,equipment){
+  if(!valid.length){document.getElementById("technicalNotes").innerHTML=""; return;}
+  const critical=[...valid].sort((a,b)=>b.lmax_previsto_m-a.lmax_previsto_m)[0];
+  const avgBurden=mean(valid.map(r=>r.afastamento_m)), avgSpacing=mean(valid.map(r=>r.espacamento_m));
+  const lowStemming=valid.filter(r=>r.razao_tampao_profundidade<0.25).length;
+  document.getElementById("technicalNotes").innerHTML=[
+    ["Furo crítico",`${critical.id_furo}: maior Lmax previsto (${fmt(critical.lmax_previsto_m)} m).`],
+    ["Malha média",`Afastamento ${fmt(avgBurden)} m; espaçamento ${fmt(avgSpacing)} m.`],
+    ["Confinamento",lowStemming?`${lowStemming} furo(s) com tampão/profundidade < 0,25.`:"Relação tampão/profundidade sem alerta crítico."]
+  ].map(([k,v])=>`<div><strong>${k}</strong><span>${v}</span></div>`).join("");
 }
 
 document.getElementById("addHoleBtn").onclick=()=>addHole({id_furo:`F${String(holes.length+1).padStart(3,"0")}`});
