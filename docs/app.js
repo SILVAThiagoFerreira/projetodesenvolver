@@ -419,7 +419,6 @@ function run(silent=false){
   charts.forEach(c=>c.destroy());
   charts=[
     new Chart(document.getElementById("lmaxChart"),{type:"bar",data:{labels:valid.map((r,i)=>r.litologia || `Condição ${i+1}`),datasets:[{label:"Lmax previsto (m)",data:lmax,backgroundColor:"#007e7a"}]},options:{plugins:{legend:{display:false}}}}),
-    new Chart(document.getElementById("stemmingChart"),{type:"scatter",data:{datasets:[{label:"Lmax x tampão",data:valid.map(r=>({x:r.tampao_real_m,y:r.lmax_previsto_m}))}]},options:{scales:{x:{title:{display:true,text:"Tampão real (m)"}},y:{title:{display:true,text:"Lmax (m)"}}}}})
   ];
   reportHtml=`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><body><h1>Relatório Terrock Flyrock</h1><p>Desmonte: ${document.getElementById("blastName").value}. K=${k}. Ângulo=${angle}°. Lmax referência=${fmt(ref)} m. Raio pessoas=${fmt(ref*people)} m.</p><p>Ferramenta de apoio técnico; não substitui responsável técnico habilitado.</p><h2>Resultados</h2>${table(results,resultKeys)}<h2>Desenho inverso</h2>${table(inverse,["litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","cme_necessaria_kg","alerta"])}</body></html>`;
   document.getElementById("downloadCsv").disabled=false; document.getElementById("downloadReport").disabled=false;
@@ -492,7 +491,22 @@ function renderTechnicalNotes(valid,ref,people,equipment){
 }
 
 document.getElementById("addHoleBtn").onclick=()=>addHole(emptyHole());
-document.getElementById("sampleBtn").onclick=()=>{holes=[]; addHole({litologia:"SULFETO",densidade_litologica_g_cm3:2.8,diametro_furo_pol:6.5,profundidade_m:12,afastamento_m:4,espacamento_m:5,tampao_real_m:4.1,carga_maxima_espera_kg:170,massa_desmontada_kt:10,razao_carga:0.75}); addHole({litologia:"OXIDADO",densidade_litologica_g_cm3:2.4,diametro_furo_pol:6.5,profundidade_m:10,afastamento_m:4,espacamento_m:5,tampao_real_m:5,carga_maxima_espera_kg:135,massa_desmontada_kt:10,razao_carga:0.75});};
+function loadDefaultBlast(){
+  document.getElementById("blastName").value = "Fogo 01";
+  document.getElementById("kPreset").value = "21.9";
+  document.getElementById("kValue").value = "21.9";
+  document.getElementById("angleValue").value = "45";
+  document.getElementById("peopleFactor").value = "4";
+  document.getElementById("equipmentFactor").value = "2";
+  document.getElementById("targetRadius").value = "600";
+  document.getElementById("referenceMode").value = "max";
+  holes=[];
+  addHole({litologia:"SULFETO",densidade_litologica_g_cm3:2.8,diametro_furo_pol:6.5,profundidade_m:12,afastamento_m:4,espacamento_m:5,tampao_real_m:4.1,carga_maxima_espera_kg:170,massa_desmontada_kt:10,razao_carga:0.75});
+  addHole({litologia:"OXIDADO",densidade_litologica_g_cm3:2.4,diametro_furo_pol:6.5,profundidade_m:10,afastamento_m:4,espacamento_m:5,tampao_real_m:5,carga_maxima_espera_kg:135,massa_desmontada_kt:10,razao_carga:0.75});
+  run(true);
+}
+
+document.getElementById("sampleBtn").onclick=loadDefaultBlast;
 document.getElementById("runBtn").onclick=run;
 document.getElementById("downloadCsv").onclick=()=>download("base_furos_terrock.csv",csv(results),"text/csv;charset=utf-8");
 document.getElementById("downloadReport").onclick=()=>download("relatorio_terrock_flyrock.html",reportHtml,"text/html;charset=utf-8");
@@ -544,5 +558,5 @@ async function loadExampleAssets(){
   }
 }
 
-addHole(emptyHole());
+loadDefaultBlast();
 loadExampleAssets();
