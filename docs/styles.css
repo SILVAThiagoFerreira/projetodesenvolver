@@ -1,8 +1,9 @@
 :root{
-  --vale-green:#007a33;
-  --vale-green-dark:#005826;
-  --vale-lime:#a6ce39;
-  --vale-yellow:#f2c300;
+  --vale-green:#009B3A;
+  --vale-green-dark:#007229;
+  --vale-gray:#4D4D4D;
+  --vale-turquoise:#00A79D;
+  --vale-yellow:#FFCC00;
   --ink:#17313a;
   --muted:#6e7f87;
   --line:#d9e3e1;
@@ -21,8 +22,8 @@ body{
   margin:0;
   color:var(--ink);
   background:
-    radial-gradient(circle at top left, rgba(166,206,57,.18), transparent 28%),
-    radial-gradient(circle at top right, rgba(0,122,51,.10), transparent 24%),
+    radial-gradient(circle at top left, rgba(0,167,157,.16), transparent 28%),
+    radial-gradient(circle at top right, rgba(0,155,58,.12), transparent 24%),
     linear-gradient(180deg,#f7faf8 0%, var(--bg) 100%);
   font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;
 }
@@ -46,7 +47,7 @@ p{margin:0}
   padding:22px 28px;
   color:#fff;
   background:
-    linear-gradient(135deg, var(--vale-green-dark), var(--vale-green) 64%, #0a8a38);
+    linear-gradient(135deg, var(--vale-green-dark), var(--vale-green) 62%, var(--vale-turquoise));
   border-bottom:4px solid var(--vale-yellow);
   box-shadow:0 10px 28px rgba(0,0,0,.12);
   position:sticky;
@@ -93,7 +94,7 @@ h1{font-size:clamp(20px,2vw,30px);font-weight:800;line-height:1.12}
   position:absolute;
   inset:auto 0 0 0;
   height:3px;
-  background:linear-gradient(90deg,var(--vale-green),var(--vale-lime),var(--vale-yellow));
+  background:linear-gradient(90deg,var(--vale-green),var(--vale-turquoise),var(--vale-yellow));
 }
 .panel + .panel{margin-top:0}
 .panel-title{
@@ -103,7 +104,7 @@ h1{font-size:clamp(20px,2vw,30px);font-weight:800;line-height:1.12}
   margin-bottom:12px;
 }
 .panel-title span{
-  color:var(--vale-green-dark);
+  color:var(--vale-gray);
   background:var(--soft-2);
   border:1px solid #d2e2d8;
   border-radius:999px;
@@ -133,7 +134,7 @@ label{
   gap:6px;
   font-weight:700;
   font-size:12px;
-  color:#31424a;
+  color:var(--vale-gray);
 }
 input,select{
   font:inherit;
@@ -150,7 +151,7 @@ input:hover,select:hover{border-color:#bfd0c8}
 input:focus,select:focus{
   outline:none;
   border-color:var(--vale-green);
-  box-shadow:0 0 0 4px rgba(0,122,51,.12);
+  box-shadow:0 0 0 4px rgba(0,155,58,.12);
 }
 
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -167,7 +168,7 @@ button{
   cursor:pointer;
   font-weight:800;
   font-size:13px;
-  box-shadow:0 10px 22px rgba(0,122,51,.18);
+  box-shadow:0 10px 22px rgba(0,155,58,.18);
   transition:transform .15s ease, filter .15s ease, box-shadow .15s ease;
 }
 button:hover{filter:brightness(.98);transform:translateY(-1px)}
@@ -240,11 +241,11 @@ button:disabled{
   margin-bottom:16px;
 }
 .equation-strip > div{
-  background:linear-gradient(180deg,#083d2a,#0a5237);
+  background:linear-gradient(180deg,var(--vale-gray),#2f2f2f);
   color:#fff;
   border-radius:18px;
   padding:15px 16px;
-  border:1px solid rgba(166,206,57,.24);
+  border:1px solid rgba(0,167,157,.20);
   box-shadow:var(--shadow);
 }
 .equation-strip code{
@@ -258,7 +259,7 @@ button:disabled{
 .equation-strip strong{display:block;font-size:18px;color:#fff}
 .eyebrow{
   display:block;
-  color:#cde6bb;
+  color:#ffd95a;
   font-size:11px;
   font-weight:800;
   text-transform:uppercase;
@@ -308,7 +309,7 @@ button:disabled{
 .legend i{display:inline-block;width:28px;height:0;border-top:3px solid}
 .legend .poly{border-color:var(--vale-green-dark)}
 .legend .equip{border-color:var(--vale-green)}
-.legend .people{border-color:var(--vale-lime);border-top-style:dashed}
+.legend .people{border-color:var(--vale-turquoise);border-top-style:dashed}
 .legend .topo{border-color:#8ca099;border-top-width:1px}
 .legend .sat{border-color:#c4cbd0;border-top-width:6px}
 
@@ -326,7 +327,7 @@ button:disabled{
 }
 .stats strong{
   display:block;
-  color:var(--vale-green-dark);
+  color:var(--vale-gray);
   font-size:12px;
   margin-bottom:4px;
 }
@@ -403,8 +404,8 @@ td input.lito{width:112px}
 }
 .notes span{font-size:13px;color:#2b3d43;line-height:1.45}
 .disclaimer{
-  background:linear-gradient(90deg,#fff8df,#fffdf2);
-  border:1px solid #f0ddb1;
+  background:linear-gradient(90deg,#fffbe6,#fffef7);
+  border:1px solid #f3e2a7;
   border-left:5px solid var(--vale-yellow);
   padding:14px 16px;
   margin:16px 0 28px;
