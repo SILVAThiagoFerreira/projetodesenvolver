@@ -2,7 +2,6 @@
   --vale-green:#009B3A;
   --vale-green-dark:#007229;
   --vale-gray:#4D4D4D;
-  --vale-turquoise:#00A79D;
   --vale-yellow:#FFCC00;
   --ink:#17313a;
   --muted:#6e7f87;
@@ -22,7 +21,7 @@ body{
   margin:0;
   color:var(--ink);
   background:
-    radial-gradient(circle at top left, rgba(0,167,157,.16), transparent 28%),
+    radial-gradient(circle at top left, rgba(255,204,0,.10), transparent 28%),
     radial-gradient(circle at top right, rgba(0,155,58,.12), transparent 24%),
     linear-gradient(180deg,#f7faf8 0%, var(--bg) 100%);
   font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;
@@ -47,7 +46,7 @@ p{margin:0}
   padding:22px 28px;
   color:#fff;
   background:
-    linear-gradient(135deg, var(--vale-green-dark), var(--vale-green) 62%, var(--vale-turquoise));
+    linear-gradient(135deg, var(--vale-green-dark), var(--vale-green) 70%, #f6cb1f);
   border-bottom:4px solid var(--vale-yellow);
   box-shadow:0 10px 28px rgba(0,0,0,.12);
   position:sticky;
@@ -94,7 +93,7 @@ h1{font-size:clamp(20px,2vw,30px);font-weight:800;line-height:1.12}
   position:absolute;
   inset:auto 0 0 0;
   height:3px;
-  background:linear-gradient(90deg,var(--vale-green),var(--vale-turquoise),var(--vale-yellow));
+  background:linear-gradient(90deg,var(--vale-green),var(--vale-yellow));
 }
 .panel + .panel{margin-top:0}
 .panel-title{
@@ -245,7 +244,7 @@ button:disabled{
   color:#fff;
   border-radius:18px;
   padding:15px 16px;
-  border:1px solid rgba(0,167,157,.20);
+  border:1px solid rgba(255,204,0,.18);
   box-shadow:var(--shadow);
 }
 .equation-strip code{
@@ -309,7 +308,7 @@ button:disabled{
 .legend i{display:inline-block;width:28px;height:0;border-top:3px solid}
 .legend .poly{border-color:var(--vale-green-dark)}
 .legend .equip{border-color:var(--vale-green)}
-.legend .people{border-color:var(--vale-turquoise);border-top-style:dashed}
+.legend .people{border-color:var(--vale-yellow);border-top-style:dashed}
 .legend .topo{border-color:#8ca099;border-top-width:1px}
 .legend .sat{border-color:#c4cbd0;border-top-width:6px}
 
