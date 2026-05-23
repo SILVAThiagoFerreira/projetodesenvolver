@@ -617,20 +617,14 @@ window.addEventListener("mousemove",e=>{if(!isDragging||!dragStart)return; const
 
 async function loadExampleAssets(){
   try{
-    const [surface,ortho,dxf]=await Promise.all([
-      fetch("./assets/examples/curvas-de-nivel.tif").then(r=>r.arrayBuffer()),
-      fetch("./assets/examples/ortomosaico.tif").then(r=>r.arrayBuffer()),
-      fetch("./assets/examples/plano-de-perfuracao.dxf").then(r=>r.text())
-    ]);
-    await readGeoTiffBuffer(ortho,"ortho");
-    await readGeoTiffBuffer(surface,"surface");
+    const dxf=await fetch("./assets/examples/plano-de-perfuracao.dxf").then(r=>r.text());
     contour=parseDxf(dxf,n(document.getElementById("dxfUnit").value));
     viewBounds=getInitialBounds();
-    document.getElementById("exampleStatus").textContent="Exemplo carregado: ortomosaico, curvas de nível e plano de perfuração. Você pode substituir qualquer camada.";
+    document.getElementById("exampleStatus").textContent="Exemplo carregado: poligonal de desmonte. Você pode substituir o DXF pelo seu arquivo.";
     renderSpatialStats();
     run(true);
   }catch(err){
-    document.getElementById("exampleStatus").textContent="Não foi possível carregar o exemplo automaticamente. Use os campos acima para importar GeoTIFF, ortomosaico e DXF.";
+    document.getElementById("exampleStatus").textContent="Não foi possível carregar o exemplo automaticamente. Use o campo de DXF para importar a poligonal.";
   }
 }
 
