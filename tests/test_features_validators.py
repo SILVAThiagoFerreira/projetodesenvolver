@@ -10,4 +10,5 @@ def test_engineering_and_invalid_data():
     assert eng.loc[0, "coluna_carregada_m"] == 7
     assert eng.loc[0, "carga_linear_kg_m"] == 20
     val = validate_modeling_data(df)
-    assert val.loc[1, "validation_status"] == "invalid"
+    assert val.loc[1, "validation_status"] == "critical"
+    assert bool(val.loc[1, "validation_blocked"])

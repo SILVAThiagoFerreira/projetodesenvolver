@@ -4,17 +4,22 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import streamlit as st
+import streamlit as st  # noqa: E402
 
-from src.config.settings import load_config
-from src.pipeline import run_pipeline
+from src.config.settings import load_config  # noqa: E402
+from src.utils.exceptions import ConfigurationError, FlyrockError  # noqa: E402
+from src.pipeline import run_pipeline  # noqa: E402
 
 st.set_page_config(page_title="Flyrock Modeling", layout="wide")
 st.title("Modelo de Previsão de Flyrock")
 st.caption("Ferramenta local de análise, simulação e relatório. Não substitui responsável técnico habilitado.")
 
 config_path = st.sidebar.text_input("Arquivo YAML", "configs/default.yaml")
-config = load_config(ROOT / config_path)
+try:
+    config = load_config(ROOT / config_path)
+except ConfigurationError as exc:
+    st.error(str(exc))
+    st.stop()
 
 with st.sidebar:
     st.header("Parâmetros")
@@ -28,16 +33,23 @@ plans = st.file_uploader("Planos de fogo (.xlsx)", type=["xlsx"])
 monitoring = st.file_uploader("Monitoramento (.xlsx)", type=["xlsx"])
 if plans:
     path = ROOT / "data/raw/Apendice_I_Planos_de_fogo.xlsx"
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(plans.getbuffer())
 if monitoring:
     path = ROOT / "data/raw/Apendice_II_Banco_de_dados_monitoramento.xlsx"
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(monitoring.getbuffer())
 
 if st.button("Processar e gerar relatório", type="primary"):
     with st.spinner("Processando bases, calibrando modelo e gerando saídas..."):
-        result = run_pipeline(config, ROOT)
-    st.session_state["result"] = result
-    st.success("Processamento concluído.")
+        try:
+            result = run_pipeline(config, ROOT)
+        except (FlyrockError, ValueError) as exc:
+            st.session_state.pop("result", None)
+            st.error(str(exc))
+        else:
+            st.session_state["result"] = result
+            st.success("Processamento concluído.")
 
 result = st.session_state.get("result")
 if result:
@@ -48,9 +60,14 @@ if result:
         st.dataframe(result["modeled"][["desmonte", "id_furo", "validation_status", "validation_errors", "is_outlier", "outlier_reason"]])
     with tabs[1]:
         st.metric("K global", round(float(result["k_global"]), 4))
+        st.json(result["k_summary"])
         st.json(result["metrics"])
-        st.dataframe(result["k_by_lithology"].reset_index(name="k") if len(result["k_by_lithology"]) else result["modeled"].head())
+        if len(result["k_by_lithology"]):
+            st.dataframe(result["k_by_lithology"].rename("k").reset_index())
+        else:
+            st.info("Calibração por litologia indisponível.")
     with tabs[2]:
+        st.json(result["monte_carlo"].get("summary", {}))
         st.dataframe(result["safety"])
         st.dataframe(result["inverse"])
     with tabs[3]:

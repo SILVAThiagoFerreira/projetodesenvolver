@@ -10,13 +10,14 @@ def descriptive_statistics(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame
     rows = []
     for col in columns:
         s = pd.to_numeric(df[col], errors="coerce") if col in df else pd.Series(dtype=float)
+        outlier_mask = pd.Series(False, index=df.index) if "is_outlier" not in df else df["is_outlier"].fillna(False).astype(bool)
         q = s.quantile([0.25, 0.5, 0.75])
         rows.append({
             "variavel": col, "media": s.mean(), "mediana": s.median(), "desvio_padrao": s.std(),
             "coef_variacao": s.std() / s.mean() if s.mean() else np.nan, "minimo": s.min(), "maximo": s.max(),
             "q1": q.get(0.25, np.nan), "q2": q.get(0.5, np.nan), "q3": q.get(0.75, np.nan),
             "assimetria": s.skew(), "curtose": s.kurt(), "faltantes": int(s.isna().sum()),
-            "outliers": int(df.loc[df.get("is_outlier", False) == True, col].count()) if col in df else 0,
+            "outliers": int(df.loc[outlier_mask, col].count()) if col in df else 0,
         })
     return pd.DataFrame(rows)
 

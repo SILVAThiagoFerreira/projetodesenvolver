@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 import pandas as pd
 import yaml
@@ -11,6 +12,14 @@ def export_processed(plans: pd.DataFrame, monitoring: pd.DataFrame, modeling: pd
     monitoring.to_csv(out / "base_monitoramento_normalizada.csv", index=False, encoding="utf-8-sig")
     modeling.to_csv(out / "base_modelagem.csv", index=False, encoding="utf-8-sig")
     modeling.to_excel(out / "base_modelagem_com_resultados.xlsx", index=False)
+    if "calculation_trace" in modeling.columns:
+        audit_path = out / "base_modelagem_auditoria.jsonl"
+        with audit_path.open("w", encoding="utf-8") as fh:
+            for trace in modeling["calculation_trace"].dropna():
+                if isinstance(trace, str):
+                    fh.write(trace + "\n")
+                else:
+                    fh.write(json.dumps(trace, ensure_ascii=False, default=str) + "\n")
 
 
 def export_yaml(payload: dict, path: str | Path) -> None:

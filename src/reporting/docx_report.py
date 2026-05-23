@@ -4,15 +4,26 @@ from pathlib import Path
 def render_docx_report(context: dict, output_path: str | Path = "reports/outputs/relatorio_flyrock.docx") -> Path | None:
     try:
         from docx import Document
+
         doc = Document()
         doc.add_heading(context["config"]["project"]["name"], 0)
         doc.add_paragraph("Ferramenta de analise; nao substitui responsavel tecnico habilitado.")
-        for title in ["Objetivo", "Metodologia", "Calibracao do modelo", "Raios de seguranca", "Limitacoes"]:
+        for title in ["Objetivo", "Metodologia", "Qualidade dos dados", "Calibracao do modelo", "Monte Carlo", "Raios de seguranca", "Limitacoes"]:
             doc.add_heading(title, level=1)
-            doc.add_paragraph("Conteudo tecnico conforme relatorio HTML gerado pelo sistema.")
+            if title == "Qualidade dos dados":
+                for row in context.get("quality_rows", []):
+                    doc.add_paragraph(f"{row['chave']}: {row['valor']}")
+            elif title == "Calibracao do modelo":
+                for row in context.get("calibration_rows", []):
+                    doc.add_paragraph(f"{row['chave']}: {row['valor']}")
+            elif title == "Monte Carlo":
+                for row in context.get("monte_carlo_rows", []):
+                    doc.add_paragraph(f"{row['chave']}: {row['valor']}")
+            else:
+                doc.add_paragraph("Conteudo tecnico conforme relatorio HTML gerado pelo sistema.")
         output = Path(output_path)
         output.parent.mkdir(parents=True, exist_ok=True)
-        doc.save(output)
+        doc.save(str(output))
         return output
     except Exception:
         return None

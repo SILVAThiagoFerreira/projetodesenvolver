@@ -5,9 +5,16 @@ import pandas as pd
 from src.data.normalizers import normalize_blast_sheet, normalize_monitoring
 
 
+def _is_blast_sheet(name: str) -> bool:
+    slug = str(name).strip().lower()
+    return slug.startswith("fogo") or "desmonte" in slug or "plano" in slug
+
+
 def load_blast_plans(path: str | Path) -> pd.DataFrame:
     sheets = pd.read_excel(path, sheet_name=None, header=None)
-    frames = [normalize_blast_sheet(df, name) for name, df in sheets.items() if str(name).lower().startswith("fogo")]
+    frames = [normalize_blast_sheet(df, name) for name, df in sheets.items() if _is_blast_sheet(name)]
+    if not frames:
+        frames = [normalize_blast_sheet(df, name) for name, df in sheets.items()]
     frames = [f for f in frames if not f.empty]
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 

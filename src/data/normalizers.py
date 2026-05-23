@@ -78,8 +78,16 @@ def normalize_blast_sheet(df: pd.DataFrame, sheet_name: str) -> pd.DataFrame:
     raw = df.dropna(how="all").dropna(axis=1, how="all")
     if raw.empty:
         return pd.DataFrame()
-    first_col = raw.columns[0]
-    long = raw.set_index(first_col).T.reset_index(drop=True)
+    slugged_cols = [slug(col) for col in raw.columns]
+    recognized = sum(
+        col in PLAN_COLUMNS or col in {"desmonte", "litologia", "id furo"}
+        for col in slugged_cols
+    )
+    if recognized >= 3:
+        long = raw.copy()
+    else:
+        first_col = raw.columns[0]
+        long = raw.set_index(first_col).T.reset_index(drop=True)
     long.columns = [PLAN_COLUMNS.get(slug(c), slug(c).replace(" ", "_")) for c in long.columns]
     long["sheet_name"] = sheet_name
     if "desmonte" not in long.columns or long["desmonte"].isna().all():
