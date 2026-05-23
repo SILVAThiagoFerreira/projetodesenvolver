@@ -419,7 +419,7 @@ function run(silent=false){
   const valid=results.filter(r=>r.validation_status==="valid");
   const lmax=valid.map(r=>r.lmax_previsto_m);
   const mode=document.getElementById("referenceMode").value;
-  const ref=lmax.length ? (mode==="p95"?percentile(lmax,.95):mode==="p90"?percentile(lmax,.90):mode==="mean"?mean(lmax):Math.max(...lmax)) : NaN;
+  const ref=lmax.length ? (mode==="median"?percentile(lmax,.5):mode==="p95"?percentile(lmax,.95):mode==="p90"?percentile(lmax,.90):mode==="mean"?mean(lmax):Math.max(...lmax)) : NaN;
   currentRadius=Number.isFinite(ref) ? ref*people : NaN;
   document.getElementById("holeCount").textContent=valid.length;
   document.getElementById("lmaxRef").textContent=`${fmt(ref)} m`;
@@ -542,7 +542,7 @@ function updateEquationPanel(valid,k,angle,ref,people,equipment,mode){
     return;
   }
   const critical=[...valid].sort((a,b)=>b.lmax_previsto_m-a.lmax_previsto_m)[0];
-  const modeLabel={max:"máximo",p95:"P95",p90:"P90",mean:"média"}[mode] || mode;
+  const modeLabel={median:"mediana",max:"máximo",p95:"P95",p90:"P90",mean:"média"}[mode] || mode;
   document.getElementById("criticalHole").textContent=`${critical.litologia || "Desmonte"} · ${fmt(critical.lmax_previsto_m)} m`;
   document.getElementById("equationSubstitution").textContent=
     `Desmonte (${critical.litologia || "sem litologia"}): Lmax = (${fmt(k,2)}² / ${gravity}) × (${fmt(critical.carga_linear_kg_m,2)} / ${fmt(critical.tampao_efetivo_m,2)})^1,3 × sen²(${fmt(angle,1)}°) = ${fmt(critical.lmax_previsto_m)} m. `+
@@ -566,17 +566,18 @@ function renderTechnicalNotes(valid,ref,people,equipment){
 
 document.getElementById("addHoleBtn").onclick=()=>addHole(emptyHole());
 function loadDefaultBlast(){
-  document.getElementById("blastName").value = "Fogo 01";
-  document.getElementById("kPreset").value = "21.9";
-  document.getElementById("kValue").value = "21.9";
+  document.getElementById("blastName").value = "Calibração histórica";
+  document.getElementById("kPreset").value = "14.2756";
+  document.getElementById("kValue").value = "14.2756";
   document.getElementById("angleValue").value = "45";
-  document.getElementById("peopleFactor").value = "4";
+  document.getElementById("peopleFactor").value = "4.6666666667";
   document.getElementById("equipmentFactor").value = "2";
-  document.getElementById("targetRadius").value = "600";
-  document.getElementById("referenceMode").value = "max";
+  document.getElementById("targetRadius").value = "700";
+  document.getElementById("referenceMode").value = "median";
   holes=[];
-  addHole({litologia:"SULFETO",densidade_litologica_g_cm3:2.8,diametro_furo_pol:6.5,profundidade_m:12,afastamento_m:4,espacamento_m:5,tampao_real_m:4.1,carga_maxima_espera_kg:170,massa_desmontada_kt:10,razao_carga:0.75});
-  addHole({litologia:"OXIDADO",densidade_litologica_g_cm3:2.4,diametro_furo_pol:6.5,profundidade_m:10,afastamento_m:4,espacamento_m:5,tampao_real_m:5,carga_maxima_espera_kg:135,massa_desmontada_kt:10,razao_carga:0.75});
+  addHole({litologia:"SULFETO",densidade_litologica_g_cm3:3.4,diametro_furo_pol:5.5,profundidade_m:10,afastamento_m:2.55,espacamento_m:3,tampao_real_m:2.3,carga_maxima_espera_kg:150,massa_desmontada_kt:30,razao_carga:0.45});
+  addHole({litologia:"OXIDADO",densidade_litologica_g_cm3:3.0,diametro_furo_pol:5.5,profundidade_m:10,afastamento_m:5.1,espacamento_m:5.3,tampao_real_m:3,carga_maxima_espera_kg:150,massa_desmontada_kt:90,razao_carga:0.25});
+  addHole({litologia:"ESTÉRIL",densidade_litologica_g_cm3:2.69,diametro_furo_pol:5.5,profundidade_m:10,afastamento_m:4.2,espacamento_m:4.8,tampao_real_m:2.6,carga_maxima_espera_kg:150,massa_desmontada_kt:70,razao_carga:0.35});
   run(true);
 }
 

@@ -1,3 +1,5 @@
+import math
+
 import pandas as pd
 
 from src.simulation.inverse_design import inverse_design_for_target
@@ -5,9 +7,9 @@ from src.simulation.scenarios import calculate_safety_radius
 
 
 def test_safety_radius():
-    row = calculate_safety_radius(150, 2, 4, "teste")
-    assert row["raio_equipamentos_m"] == 300
-    assert row["raio_pessoas_m"] == 600
+    row = calculate_safety_radius(150, 2, 14 / 3, "teste")
+    assert math.isclose(row["raio_equipamentos_m"], 300, rel_tol=1e-9)
+    assert math.isclose(row["raio_pessoas_m"], 700, rel_tol=1e-9)
 
 
 def test_inverse_design_targets():

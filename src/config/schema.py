@@ -40,8 +40,8 @@ class ModelConfig(StrictModel):
 
 class SafetyConfig(StrictModel):
     equipment_factor: float = Field(default=2.0, gt=0)
-    people_factor: float = Field(default=4.0, gt=0)
-    target_people_radius_m: list[float] = Field(default_factory=lambda: [600.0, 500.0])
+    people_factor: float = Field(default=14 / 3, gt=0)
+    target_people_radius_m: list[float] = Field(default_factory=lambda: [700.0, 500.0])
 
     @field_validator("target_people_radius_m")
     @classmethod

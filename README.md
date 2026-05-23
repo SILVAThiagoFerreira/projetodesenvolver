@@ -4,7 +4,7 @@ Sistema local e web para análise de dados de perfuração e desmonte, calibraç
 
 ## Objetivo técnico
 
-O projeto normaliza planos de fogo e monitoramento, une as bases por `Desmonte` e `ID Furo`, valida inconsistências, calcula atributos de engenharia, calibra a constante `K`, calcula `Lmax`, simula cenários de 600 m e 500 m para pessoas e gera saídas auditáveis.
+O projeto normaliza planos de fogo e monitoramento, une as bases por `Desmonte` e `ID Furo`, valida inconsistências, calcula atributos de engenharia, calibra a constante `K`, calcula `Lmax`, simula cenários calibrados de 700 m para pessoas e 300 m para equipamentos e gera saídas auditáveis.
 
 O sistema é ferramenta de análise e apoio à decisão. Não substitui a responsabilidade técnica de engenheiros habilitados.
 
@@ -43,7 +43,7 @@ pytest
 
 ## Configuração
 
-Edite `configs/default.yaml` ou selecione outro YAML na interface. Os parâmetros controlam gravidade, método de calibração de `K`, uso de litologia, fatores de segurança, outliers, Monte Carlo e formatos de relatório.
+Edite `configs/default.yaml` ou selecione outro YAML na interface. Os parâmetros controlam gravidade, método de calibração de `K`, uso de litologia, fatores de segurança calibrados, outliers, Monte Carlo e formatos de relatório.
 
 ## Interpretação
 

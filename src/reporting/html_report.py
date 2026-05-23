@@ -54,7 +54,7 @@ HTML_TEMPLATE = """
 {% endif %}
 <h2>Raios de seguranca</h2>
 {{ render_rows(safety_rows) }}
-<h2>Simulacoes para 600 m e 500 m</h2>
+<h2>Simulacoes para os alvos configurados</h2>
 {{ render_rows(inverse_rows) }}
 <h2>Proposta de plano de fogo controlado</h2>
 <p>Usar as combinacoes de tampao e carga linear simuladas como triagem tecnica. Alteracoes geometricas de afastamento e espacamento devem ser avaliadas separadamente por engenharia de perfuracao e desmonte.</p>

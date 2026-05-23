@@ -29,6 +29,7 @@ def safety_table(df: pd.DataFrame, equipment_factor: float, people_factor: float
     refs = {
         "maximo_observado": df.get("distancia_horizontal_m", pd.Series(dtype=float)).max(),
         "maximo_previsto": df["lmax_previsto_m"].max(),
+        "mediana_prevista": df["lmax_previsto_m"].median(),
         "p90_previsto": df["lmax_previsto_m"].quantile(0.90),
         "p95_previsto": df["lmax_previsto_m"].quantile(0.95),
         "p99_previsto": df["lmax_previsto_m"].quantile(0.99),
