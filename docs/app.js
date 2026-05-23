@@ -2,12 +2,6 @@ const gravity = 9.80665;
 let holes = [];
 let results = [];
 let contour = [];
-let rasterStats = null;
-let rasterPreview = null;
-let rasterBounds = null;
-let orthoPreview = null;
-let orthoBounds = null;
-let topoLines = [];
 let currentRadius = NaN;
 let viewBounds = null;
 let isDragging = false;
@@ -133,31 +127,164 @@ function inverseRows(valid,k,angle,target,peopleFactor){
   });
 }
 
+function pointKey(point, eps=0.001){
+  return `${Math.round(point[0] / eps)}:${Math.round(point[1] / eps)}`;
+}
+
+function collectSegmentComponents(segments){
+  const pointToSegments = new Map();
+  segments.forEach((segment, idx)=>{
+    segment.forEach(pt=>{
+      const key = pointKey(pt);
+      if(!pointToSegments.has(key)) pointToSegments.set(key, []);
+      pointToSegments.get(key).push(idx);
+    });
+  });
+
+  const seen = new Array(segments.length).fill(false);
+  const components = [];
+  for(let start=0; start<segments.length; start++){
+    if(seen[start]) continue;
+    const stack = [start];
+    seen[start] = true;
+    const component = [];
+    while(stack.length){
+      const idx = stack.pop();
+      component.push(idx);
+      segments[idx].forEach(pt=>{
+        const neighbors = pointToSegments.get(pointKey(pt)) || [];
+        neighbors.forEach(next=>{
+          if(!seen[next]){
+            seen[next] = true;
+            stack.push(next);
+          }
+        });
+      });
+    }
+    components.push(component);
+  }
+  return components;
+}
+
+function chainClosedComponent(segments, indices){
+  if(!indices.length) return null;
+  const adjacency = new Map();
+  const addPoint = pt=>{
+    const key = pointKey(pt);
+    if(!adjacency.has(key)) adjacency.set(key, {point: pt, neighbors: new Set()});
+    return key;
+  };
+
+  indices.forEach(idx=>{
+    const [a,b] = segments[idx];
+    const ka = addPoint(a);
+    const kb = addPoint(b);
+    adjacency.get(ka).neighbors.add(kb);
+    adjacency.get(kb).neighbors.add(ka);
+  });
+
+  if(adjacency.size < 3) return null;
+  for(const node of adjacency.values()){
+    if(node.neighbors.size !== 2) return null;
+  }
+
+  const startKey = adjacency.keys().next().value;
+  const startNode = adjacency.get(startKey);
+  const startNeighbors = [...startNode.neighbors];
+  if(startNeighbors.length !== 2) return null;
+
+  const path = [startNode.point];
+  let prevKey = startKey;
+  let currentKey = startNeighbors[0];
+  path.push(adjacency.get(currentKey).point);
+  let edgesUsed = 1;
+
+  while(edgesUsed < indices.length){
+    const currentNode = adjacency.get(currentKey);
+    const neighbors = [...currentNode.neighbors];
+    const nextKey = neighbors[0] === prevKey ? neighbors[1] : neighbors[0];
+    if(nextKey === undefined) return null;
+    edgesUsed += 1;
+    if(nextKey === startKey){
+      return edgesUsed === indices.length ? path : null;
+    }
+    path.push(adjacency.get(nextKey).point);
+    prevKey = currentKey;
+    currentKey = nextKey;
+  }
+
+  return null;
+}
+
 function parseDxf(text,scale){
   const lines=text.replace(/\r/g,"").split("\n").map(s=>s.trim());
+  const segments=[];
   const polylines=[];
-  for(let i=0;i<lines.length;i++){
-    if(lines[i]==="LWPOLYLINE"){
-      const pts=[]; let closed=false;
-      for(let j=i+1;j<lines.length-1;j+=2){
-        const code=lines[j], value=lines[j+1];
-        if(code==="0"){i=j-1; break}
-        if(code==="70") closed=(Number(value)&1)===1;
-        if(code==="10"){
-          const x=n(value)*scale;
-          let y=NaN;
-          for(let k=j+2;k<Math.min(j+10,lines.length-1);k+=2){
-            if(lines[k]==="20"){y=n(lines[k+1])*scale; break}
-          }
-          if(Number.isFinite(x)&&Number.isFinite(y)) pts.push([x,y]);
-        }
+  let currentType = null;
+  let lineState = null;
+  let polylineState = null;
+  let index = 0;
+
+  const nextToken = ()=>{
+    while(index < lines.length && lines[index] === "") index += 1;
+    return index < lines.length ? lines[index++] : null;
+  };
+
+  const flushEntity = ()=>{
+    if(currentType === "LINE" && lineState && Number.isFinite(lineState.x1) && Number.isFinite(lineState.y1) && Number.isFinite(lineState.x2) && Number.isFinite(lineState.y2)){
+      segments.push([[lineState.x1,lineState.y1],[lineState.x2,lineState.y2]]);
+    }else if(currentType === "LWPOLYLINE" && polylineState && polylineState.closed && polylineState.pts.length >= 3){
+      polylines.push({pts: polylineState.pts, closed: polylineState.closed});
+    }
+    currentType = null;
+    lineState = null;
+    polylineState = null;
+  };
+
+  while(index < lines.length){
+    const code = nextToken();
+    if(code === null) break;
+    const value = nextToken();
+    if(value === null) break;
+    if(code === "0"){
+      flushEntity();
+      currentType = value;
+      if(currentType === "LINE"){
+        lineState = {x1:NaN,y1:NaN,x2:NaN,y2:NaN};
+      }else if(currentType === "LWPOLYLINE"){
+        polylineState = {pts:[], closed:false, pendingX:null};
       }
-      if(pts.length>=3) polylines.push({pts,closed});
+      continue;
+    }
+    if(currentType === "LINE" && lineState){
+      if(code === "10") lineState.x1 = n(value) * scale;
+      else if(code === "20") lineState.y1 = n(value) * scale;
+      else if(code === "11") lineState.x2 = n(value) * scale;
+      else if(code === "21") lineState.y2 = n(value) * scale;
+      continue;
+    }
+    if(currentType === "LWPOLYLINE" && polylineState){
+      if(code === "70") polylineState.closed = (Number(value) & 1) === 1;
+      else if(code === "10") polylineState.pendingX = n(value) * scale;
+      else if(code === "20" && Number.isFinite(polylineState.pendingX)){
+        polylineState.pts.push([polylineState.pendingX, n(value) * scale]);
+        polylineState.pendingX = null;
+      }
     }
   }
-  const candidates=polylines
-    .map(p=>({pts:p.pts,closed:p.closed,stats:polygonStats(p.pts)}))
+  flushEntity();
+
+  const lineContours = collectSegmentComponents(segments)
+    .map(component=>chainClosedComponent(segments, component))
+    .filter(pts=>pts && pts.length >= 3)
+    .map(pts=>({pts,stats:polygonStats(pts)}))
     .filter(p=>p.stats && p.stats.area_m2>5 && p.stats.largura_m>1 && p.stats.altura_m>1);
+
+  const polylineContours=polylines
+    .map(p=>({pts:p.pts,stats:polygonStats(p.pts)}))
+    .filter(p=>p.stats && p.stats.area_m2>5 && p.stats.largura_m>1 && p.stats.altura_m>1);
+
+  const candidates=[...lineContours, ...polylineContours];
   candidates.sort((a,b)=>b.stats.area_m2-a.stats.area_m2);
   return candidates[0]?.pts ?? [];
 }
@@ -178,7 +305,7 @@ function centroid(pts){
 function drawMap(){
   const canvas=document.getElementById("mapCanvas"), ctx=canvas.getContext("2d");
   ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle="#f7faf9"; ctx.fillRect(0,0,canvas.width,canvas.height);
-  const cst=polygonStats(contour), [cx,cy]=centroid(contour), radius=Number.isFinite(currentRadius)?currentRadius:0, pad=42;
+  const [cx,cy]=centroid(contour), radius=Number.isFinite(currentRadius)?currentRadius:0, pad=42;
   const baseBounds = getInitialBounds();
   if(!viewBounds) viewBounds = baseBounds;
   let {minX,maxX,minY,maxY}=viewBounds;
@@ -186,16 +313,6 @@ function drawMap(){
   const px=x=>pad+(x-minX)*s, py=y=>canvas.height-pad-(y-minY)*s;
   const wx=screenX=>minX+(screenX-pad)/s, wy=screenY=>minY+(canvas.height-pad-screenY)/s;
   if(document.getElementById("showSatellite").checked) drawSatellite(ctx,{minX,maxX,minY,maxY},px,py);
-  if(orthoPreview && orthoBounds && document.getElementById("showOrtho").checked){
-    drawRaster(ctx,orthoPreview,orthoBounds,px,py,s,.84);
-  }
-  if(rasterPreview && rasterBounds){
-    drawRaster(ctx,rasterPreview,rasterBounds,px,py,s,document.getElementById("showOrtho").checked ? .18 : .56);
-  }
-  if(document.getElementById("showTopo").checked){
-    ctx.strokeStyle="rgba(116,118,120,.55)"; ctx.lineWidth=1;
-    topoLines.forEach(seg=>{ctx.beginPath();ctx.moveTo(px(seg[0][0]),py(seg[0][1]));ctx.lineTo(px(seg[1][0]),py(seg[1][1]));ctx.stroke();});
-  }
   if(!contour.length) return;
   if(radius>0 && document.getElementById("showRadius").checked){
     ctx.beginPath(); ctx.arc(px(cx),py(cy),radius*s,0,Math.PI*2);
@@ -295,19 +412,12 @@ function lonLatToUtm(lon,lat,zone,hemisphere){
   return {easting,northing};
 }
 
-function drawRaster(ctx,img,bounds,px,py,s,alpha){
-  const x=px(bounds.minX), y=py(bounds.maxY), w=(bounds.maxX-bounds.minX)*s, h=(bounds.maxY-bounds.minY)*s;
-  ctx.globalAlpha=alpha; ctx.drawImage(img,x,y,w,h); ctx.globalAlpha=1;
-}
-
 function getInitialBounds(){
   const cst=polygonStats(contour), [cx,cy]=centroid(contour), radius=Number.isFinite(currentRadius)?currentRadius:0;
   if(cst){
     const margin=Math.max(40,radius*1.15);
     return {minX:Math.min(cst.min_x,cx-margin),maxX:Math.max(cst.max_x,cx+margin),minY:Math.min(cst.min_y,cy-margin),maxY:Math.max(cst.max_y,cy+margin)};
   }
-  if(orthoBounds) return {...orthoBounds};
-  if(rasterBounds) return {...rasterBounds};
   return {minX:0,maxX:100,minY:0,maxY:100};
 }
 
@@ -332,85 +442,7 @@ function renderSpatialStats(){
   const dxf=polygonStats(contour);
   const items=[];
   if(dxf){items.push(["Área DXF",`${fmt(dxf.area_m2)} m²`],["Perímetro DXF",`${fmt(dxf.perimetro_m)} m`],["Largura x altura",`${fmt(dxf.largura_m)} x ${fmt(dxf.altura_m)} m`],["Pontos DXF",dxf.pontos]);}
-  if(rasterStats){items.push(["GeoTIFF min",fmt(rasterStats.min)],["GeoTIFF média",fmt(rasterStats.mean)],["GeoTIFF max",fmt(rasterStats.max)],["Pixels amostrados",rasterStats.count]);}
   document.getElementById("spatialStats").innerHTML=items.map(([k,v])=>`<div><strong>${k}</strong><span>${v}</span></div>`).join("");
-}
-
-async function readGeoTiff(file){
-  const arrayBuffer=await file.arrayBuffer();
-  await readGeoTiffBuffer(arrayBuffer, "surface");
-}
-
-async function readGeoTiffBuffer(arrayBuffer, kind="surface"){
-  const tiff=await GeoTIFF.fromArrayBuffer(arrayBuffer);
-  const image=await tiff.getImage();
-  const samples = image.getSamplesPerPixel ? image.getSamplesPerPixel() : 1;
-  const raster=await image.readRasters({samples:samples>=3 && kind==="ortho" ? [0,1,2] : [0]});
-  const data=raster[0]; let min=Infinity,max=-Infinity,sum=0,count=0;
-  const step=Math.max(1,Math.floor(data.length/250000));
-  for(let i=0;i<data.length;i+=step){const v=Number(data[i]); if(Number.isFinite(v)){min=Math.min(min,v);max=Math.max(max,v);sum+=v;count++;}}
-  const stats={min,max,mean:sum/count,count,width:image.getWidth(),height:image.getHeight()};
-  let bounds=null;
-  try{
-    const bb=image.getBoundingBox();
-    bounds={minX:bb[0],minY:bb[1],maxX:bb[2],maxY:bb[3]};
-  }catch(_){
-    bounds=null;
-  }
-  const w=image.getWidth(), h=image.getHeight(), preview=document.createElement("canvas"), maxSide=700, scale=Math.min(1,maxSide/Math.max(w,h));
-  preview.width=Math.max(1,Math.floor(w*scale)); preview.height=Math.max(1,Math.floor(h*scale));
-  const pctx=preview.getContext("2d"), img=pctx.createImageData(preview.width,preview.height);
-  for(let y=0;y<preview.height;y++){
-    for(let x=0;x<preview.width;x++){
-      const srcX=Math.floor(x/scale), srcY=Math.floor(y/scale), v=Number(data[srcY*w+srcX]);
-      const t=Number.isFinite(v) && max>min ? (v-min)/(max-min) : 0;
-      const idx=(y*preview.width+x)*4;
-      if(kind==="ortho" && raster.length>=3){
-        img.data[idx]=Number(raster[0][srcY*w+srcX])||0; img.data[idx+1]=Number(raster[1][srcY*w+srcX])||0; img.data[idx+2]=Number(raster[2][srcY*w+srcX])||0; img.data[idx+3]=255;
-      }else{
-        const shade=Math.max(40,Math.min(235,Math.round(235-t*145)));
-        img.data[idx]=shade-20; img.data[idx+1]=shade; img.data[idx+2]=shade-15; img.data[idx+3]=255;
-      }
-    }
-  }
-  pctx.putImageData(img,0,0);
-  if(kind==="ortho"){orthoPreview=preview; orthoBounds=bounds;}
-  else {rasterPreview=preview; rasterBounds=bounds; rasterStats=stats; topoLines=buildTopoLines(data,w,h,min,max,rasterBounds);}
-  renderSpatialStats();
-  drawMap();
-}
-
-function buildTopoLines(data,w,h,min,max,bounds){
-  if(!bounds || !(max>min)) return [];
-  const cols=140, rows=Math.max(30,Math.round(cols*h/w)), grid=[];
-  for(let gy=0;gy<=rows;gy++){
-    const row=[]; const sy=Math.min(h-1,Math.round(gy*h/rows));
-    for(let gx=0;gx<=cols;gx++){
-      const sx=Math.min(w-1,Math.round(gx*w/cols));
-      row.push(Number(data[sy*w+sx]));
-    }
-    grid.push(row);
-  }
-  const levels=[]; const interval=(max-min)/9;
-  for(let i=1;i<9;i++) levels.push(min+interval*i);
-  const wx=gx=>bounds.minX+(gx/cols)*(bounds.maxX-bounds.minX);
-  const wy=gy=>bounds.maxY-(gy/rows)*(bounds.maxY-bounds.minY);
-  const interp=(p1,p2,v1,v2,level)=>{const t=(level-v1)/((v2-v1)||1); return [p1[0]+(p2[0]-p1[0])*t,p1[1]+(p2[1]-p1[1])*t];};
-  const lines=[];
-  for(const level of levels){
-    for(let y=0;y<rows;y++){
-      for(let x=0;x<cols;x++){
-        const v=[grid[y][x],grid[y][x+1],grid[y+1][x+1],grid[y+1][x]];
-        if(v.some(q=>!Number.isFinite(q))) continue;
-        const p=[[wx(x),wy(y)],[wx(x+1),wy(y)],[wx(x+1),wy(y+1)],[wx(x),wy(y+1)]];
-        const hits=[];
-        [[0,1],[1,2],[2,3],[3,0]].forEach(([a,b])=>{if((v[a]<level&&v[b]>=level)||(v[b]<level&&v[a]>=level)) hits.push(interp(p[a],p[b],v[a],v[b],level));});
-        if(hits.length===2) lines.push([hits[0],hits[1]]);
-        if(hits.length===4){lines.push([hits[0],hits[1]]); lines.push([hits[2],hits[3]]);}
-      }
-    }
-  }
-  return lines.slice(0,9000);
 }
 
 function run(silent=false){
@@ -593,8 +625,6 @@ document.getElementById("openEarth").onclick=()=>{
   window.open(`https://earth.google.com/web/@${p.lat},${p.lon},800a,1200d,35y,0h,0t,0r`,"_blank");
 };
 document.getElementById("dxfFile").onchange=async e=>{const file=e.target.files[0]; if(!file)return; contour=parseDxf(await file.text(),n(document.getElementById("dxfUnit").value)); viewBounds=getInitialBounds(); run(true); renderSpatialStats();};
-document.getElementById("geotiffFile").onchange=async e=>{const file=e.target.files[0]; if(file){await readGeoTiff(file); viewBounds=getInitialBounds(); drawMap();}};
-document.getElementById("orthoFile").onchange=async e=>{const file=e.target.files[0]; if(file){await readGeoTiffBuffer(await file.arrayBuffer(),"ortho"); viewBounds=getInitialBounds(); drawMap();}};
 document.getElementById("kPreset").addEventListener("input",e=>{
   if(e.target.value !== "custom") document.getElementById("kValue").value = e.target.value;
   run(true);
@@ -605,7 +635,7 @@ document.getElementById("kValue").addEventListener("input",()=>{
 });
 ["angleValue","peopleFactor","equipmentFactor","targetRadius","referenceMode"].forEach(id=>document.getElementById(id).addEventListener("input",()=>run(true)));
 ["dxfUnit"].forEach(id=>document.getElementById(id).addEventListener("input",()=>{viewBounds=null; drawMap();}));
-["showSatellite","showOrtho","showTopo","showRadius","utmZone","utmHemisphere"].forEach(id=>document.getElementById(id).addEventListener("input",drawMap));
+["showSatellite","showRadius","utmZone","utmHemisphere"].forEach(id=>document.getElementById(id).addEventListener("input",drawMap));
 document.getElementById("zoomIn").onclick=()=>zoomView(.72);
 document.getElementById("zoomOut").onclick=()=>zoomView(1.38);
 document.getElementById("resetView").onclick=()=>{viewBounds=getInitialBounds(); drawMap();};

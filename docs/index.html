@@ -6,7 +6,6 @@
   <title>Sistema de Análise de Flyrock em Raio de Segurança para Desmonte</title>
   <link rel="stylesheet" href="./styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.min.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -16,7 +15,7 @@
         <div class="brand__copy">
           <p class="kicker">Vale · Ferramenta técnica</p>
           <h1>Sistema de Análise de Flyrock em Raio de Segurança para Desmonte</h1>
-          <p>Simulação local de zona de segurança com parâmetros de fogo, ortomosaico, curvas de nível e contorno DXF.</p>
+          <p>Simulação local de zona de segurança com parâmetros de fogo e contorno DXF.</p>
         </div>
       </div>
       <span class="badge">Ferramenta local</span>
@@ -80,8 +79,6 @@
           <h2>Camadas</h2>
         </div>
         <div class="file-stack">
-          <label>Ortomosaico GeoTIFF<input id="orthoFile" type="file" accept=".tif,.tiff"></label>
-          <label>Curvas/superfície GeoTIFF<input id="geotiffFile" type="file" accept=".tif,.tiff"></label>
           <label>Contorno DXF<input id="dxfFile" type="file" accept=".dxf"></label>
         </div>
         <p class="lead tight" id="exampleStatus">Carregando exemplo: poligonal de desmonte.</p>
@@ -151,8 +148,6 @@
             <button id="zoomOut" class="secondary">Zoom -</button>
             <button id="resetView" class="secondary">Resetar</button>
             <label class="toggle"><input id="showSatellite" type="checkbox" checked> Imagem base</label>
-            <label class="toggle"><input id="showOrtho" type="checkbox" checked> Ortomosaico</label>
-            <label class="toggle"><input id="showTopo" type="checkbox" checked> Curvas</label>
             <label class="toggle"><input id="showRadius" type="checkbox" checked> Raios</label>
           </div>
         </div>
@@ -161,7 +156,6 @@
           <span><i class="poly"></i> Poligonal</span>
           <span><i class="equip"></i> Equipamentos</span>
           <span><i class="people"></i> Pessoas</span>
-          <span><i class="topo"></i> Curvas de nível</span>
           <span><i class="sat"></i> Satélite</span>
         </div>
         <div id="spatialStats" class="stats"></div>
@@ -209,7 +203,7 @@
       </section>
 
       <section class="disclaimer">
-        <strong>Aviso técnico:</strong> ferramenta de análise e padronização. Os resultados dependem dos parâmetros informados, da qualidade do contorno/topografia e da validação contínua em campo. Não substitui responsável técnico habilitado.
+        <strong>Aviso técnico:</strong> ferramenta de análise e padronização. Os resultados dependem dos parâmetros informados, da qualidade do contorno e da validação contínua em campo. Não substitui responsável técnico habilitado.
       </section>
     </section>
   </main>
