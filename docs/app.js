@@ -16,6 +16,16 @@ const tileCache = new Map();
 let charts = [];
 let reportHtml = "";
 
+const V = {
+  green: "#007E7A",
+  yellow: "#ECB11F",
+  gray: "#747678",
+  dark: "#555555",
+  black: "#303030",
+  border: "#E1E7E5",
+  polyStroke: "#003C46",
+};
+
 const fields = [
   ["litologia","text","ITABIRITO"],["densidade_litologica_g_cm3","number","2.7"],["diametro_furo_pol","number","6.5"],
   ["profundidade_m","number","12"],["afastamento_m","number","4"],["espacamento_m","number","5"],
@@ -52,7 +62,9 @@ function renderHoles(){
       const td=document.createElement("td");
       const input=document.createElement("input");
       input.type=type; input.value=hole[key] ?? ""; input.dataset.idx=idx; input.dataset.key=key;
-      if(key==="litologia") input.className="lito";
+      input.className="hole-input";
+      if(key==="litologia") input.classList.add("lito");
+      if(type==="number") input.classList.add("numeric");
       input.oninput=()=>{holes[idx][key]=input.value; run(true)};
       td.appendChild(input); tr.appendChild(td);
     });
@@ -96,7 +108,11 @@ function validateAndCompute(h,k,angle){
 
 function table(rows, keys, limit=100){
   if(!rows.length) return "<p>Sem dados calculados.</p>";
-  return `<div class="table-wrap"><table><thead><tr>${keys.map(k=>`<th>${k}</th>`).join("")}</tr></thead><tbody>${rows.slice(0,limit).map(r=>`<tr>${keys.map(k=>`<td>${Number.isFinite(r[k])?fmt(r[k]):String(r[k]??"")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="data-table"><thead><tr>${keys.map(k=>`<th>${k}</th>`).join("")}</tr></thead><tbody>${rows.slice(0,limit).map(r=>`<tr>${keys.map(k=>{
+    const isNumber = Number.isFinite(r[k]);
+    const value = isNumber ? fmt(r[k]) : String(r[k] ?? "");
+    return `<td class="${isNumber ? "is-number" : ""}">${value}</td>`;
+  }).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 
 function inverseRows(valid,k,angle,target,peopleFactor){
@@ -171,29 +187,29 @@ function drawMap(){
   const wx=screenX=>minX+(screenX-pad)/s, wy=screenY=>minY+(canvas.height-pad-screenY)/s;
   if(document.getElementById("showSatellite").checked) drawSatellite(ctx,{minX,maxX,minY,maxY},px,py);
   if(orthoPreview && orthoBounds && document.getElementById("showOrtho").checked){
-    drawRaster(ctx,orthoPreview,orthoBounds,px,py,s,.92);
+    drawRaster(ctx,orthoPreview,orthoBounds,px,py,s,.84);
   }
   if(rasterPreview && rasterBounds){
-    drawRaster(ctx,rasterPreview,rasterBounds,px,py,s,document.getElementById("showOrtho").checked ? .22 : .65);
+    drawRaster(ctx,rasterPreview,rasterBounds,px,py,s,document.getElementById("showOrtho").checked ? .18 : .56);
   }
   if(document.getElementById("showTopo").checked){
-    ctx.strokeStyle="rgba(20,50,55,.72)"; ctx.lineWidth=1;
+    ctx.strokeStyle="rgba(116,118,120,.55)"; ctx.lineWidth=1;
     topoLines.forEach(seg=>{ctx.beginPath();ctx.moveTo(px(seg[0][0]),py(seg[0][1]));ctx.lineTo(px(seg[1][0]),py(seg[1][1]));ctx.stroke();});
   }
   if(!contour.length) return;
   if(radius>0 && document.getElementById("showRadius").checked){
     ctx.beginPath(); ctx.arc(px(cx),py(cy),radius*s,0,Math.PI*2);
-    ctx.fillStyle="rgba(118,188,33,.09)"; ctx.fill(); ctx.strokeStyle="#76bc21"; ctx.lineWidth=3; ctx.setLineDash([10,6]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle="rgba(236,177,31,.12)"; ctx.fill(); ctx.strokeStyle=V.yellow; ctx.lineWidth=2.5; ctx.setLineDash([9,6]); ctx.stroke(); ctx.setLineDash([]);
     const eq=n(document.getElementById("equipmentFactor").value), pe=n(document.getElementById("peopleFactor").value), equipmentRadius=radius*(eq/pe);
     if(Number.isFinite(equipmentRadius)&&equipmentRadius>0){
       ctx.beginPath(); ctx.arc(px(cx),py(cy),equipmentRadius*s,0,Math.PI*2);
-      ctx.fillStyle="rgba(0,126,122,.10)"; ctx.fill(); ctx.strokeStyle="#007e7a"; ctx.lineWidth=2; ctx.stroke();
+      ctx.fillStyle="rgba(0,126,122,.11)"; ctx.fill(); ctx.strokeStyle=V.green; ctx.lineWidth=2; ctx.stroke();
     }
   }
   ctx.beginPath(); contour.forEach(([x,y],i)=>{if(i)ctx.lineTo(px(x),py(y)); else ctx.moveTo(px(x),py(y))}); ctx.closePath();
-  ctx.fillStyle="rgba(0,60,70,.26)"; ctx.fill(); ctx.strokeStyle="#003c46"; ctx.lineWidth=4; ctx.stroke();
-  ctx.beginPath(); ctx.arc(px(cx),py(cy),4,0,Math.PI*2); ctx.fillStyle="#003c46"; ctx.fill();
-  ctx.fillStyle="#003c46"; ctx.font="bold 13px Arial"; ctx.fillText(`Raio pessoas: ${fmt(currentRadius)} m`, px(cx)+10, py(cy)-10);
+  ctx.fillStyle="rgba(0,60,70,.18)"; ctx.fill(); ctx.strokeStyle=V.polyStroke; ctx.lineWidth=3; ctx.stroke();
+  ctx.beginPath(); ctx.arc(px(cx),py(cy),4,0,Math.PI*2); ctx.fillStyle=V.polyStroke; ctx.fill();
+  ctx.fillStyle=V.black; ctx.font="600 12px Arial"; ctx.fillText(`Raio pessoas: ${fmt(currentRadius)} m`, px(cx)+10, py(cy)-10);
   ctx.font="12px Arial"; ctx.fillText(`Poligonal do desmonte`, px(cx)+10, py(cy)+8);
   drawMap.lastTransform={px,py,wx,wy,s,pad};
 }
@@ -215,7 +231,7 @@ function drawSatellite(ctx,bounds,px,py){
       if(!img.complete) continue;
       const nw=tileToLonLat(x,y,z), se=tileToLonLat(x+1,y+1,z);
       const p1=lonLatToUtm(nw.lon,nw.lat,zone,hemi), p2=lonLatToUtm(se.lon,se.lat,zone,hemi);
-      ctx.globalAlpha=.82;
+      ctx.globalAlpha=.8;
       ctx.drawImage(img,px(p1.easting),py(p1.northing),px(p2.easting)-px(p1.easting),py(p2.northing)-py(p1.northing));
       ctx.globalAlpha=1;
     }
@@ -418,9 +434,66 @@ function run(silent=false){
   drawMap();
   charts.forEach(c=>c.destroy());
   charts=[
-    new Chart(document.getElementById("lmaxChart"),{type:"bar",data:{labels:valid.map((r,i)=>r.litologia || `Condição ${i+1}`),datasets:[{label:"Lmax previsto (m)",data:lmax,backgroundColor:"#007e7a"}]},options:{plugins:{legend:{display:false}}}}),
+    new Chart(document.getElementById("lmaxChart"),{type:"bar",data:{labels:valid.map((r,i)=>r.litologia || `Condição ${i+1}`),datasets:[{label:"Lmax previsto (m)",data:lmax,backgroundColor:V.green,borderColor:V.green,borderRadius:10,borderSkipped:false,maxBarThickness:52}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:4,right:8,bottom:0,left:8}},plugins:{legend:{display:false},title:{display:true,text:"Lmax previsto por condição",color:V.dark,font:{family:"Arial",size:14,weight:"700"},padding:{bottom:12}},tooltip:{backgroundColor:V.black,titleColor:"#fff",bodyColor:"#fff",padding:12,cornerRadius:10,displayColors:false}},scales:{x:{grid:{display:false},ticks:{color:V.dark,font:{family:"Arial",size:12,weight:"600"},maxRotation:0,autoSkip:false}},y:{beginAtZero:true,grid:{color:V.border,drawBorder:false},ticks:{color:V.dark,font:{family:"Arial",size:12}},title:{display:true,text:"m",color:V.gray,font:{family:"Arial",size:12,weight:"700"}}}}}}),
   ];
-  reportHtml=`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><body><h1>Relatório Terrock Flyrock</h1><p>Desmonte: ${document.getElementById("blastName").value}. K=${k}. Ângulo=${angle}°. Lmax referência=${fmt(ref)} m. Raio pessoas=${fmt(ref*people)} m.</p><p>Ferramenta de apoio técnico; não substitui responsável técnico habilitado.</p><h2>Resultados</h2>${table(results,resultKeys)}<h2>Desenho inverso</h2>${table(inverse,["litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","cme_necessaria_kg","alerta"])}</body></html>`;
+  reportHtml=`<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Relatório Terrock Flyrock</title>
+  <style>
+    :root{--vale-green:#007E7A;--vale-yellow:#ECB11F;--vale-gray:#747678;--vale-dark-gray:#555555;--vale-black-gray:#303030;--vale-bg:#F7F9F8;--vale-surface:#FFFFFF;--vale-border:#E1E7E5;--vale-soft-yellow:#FFF6D8;--vale-soft-green:#E6F2F1;--shadow:0 14px 28px rgba(48,48,48,.07)}
+    *{box-sizing:border-box}
+    body{margin:0;padding:24px;background:var(--vale-bg);color:var(--vale-dark-gray);font-family:Arial,Helvetica,sans-serif;line-height:1.5}
+    .shell{max-width:1120px;margin:0 auto;background:var(--vale-surface);border:1px solid var(--vale-border);border-radius:18px;overflow:hidden;box-shadow:var(--shadow)}
+    .hero{padding:22px 24px;background:linear-gradient(135deg,#005e5a 0%,var(--vale-green) 72%,#006865 100%);color:#fff}
+    .hero h1{margin:0 0 8px;font-size:26px;line-height:1.15;letter-spacing:-.03em}
+    .hero p{margin:0;color:rgba(255,255,255,.84);font-size:14px}
+    .section{padding:20px 24px}
+    .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:0 24px 4px}
+    .card{padding:14px;border:1px solid var(--vale-border);border-radius:14px;background:#fff;box-shadow:0 8px 18px rgba(48,48,48,.04)}
+    .card span{display:block;color:var(--vale-gray);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+    .card strong{display:block;margin-top:4px;color:var(--vale-green);font-size:24px;line-height:1.05}
+    h2{margin:0 0 12px;font-size:18px;color:var(--vale-black-gray)}
+    .table-wrap{overflow:auto;border:1px solid var(--vale-border);border-radius:14px;background:#fff}
+    table{width:100%;border-collapse:separate;border-spacing:0;background:#fff}
+    th,td{padding:10px 12px;border-bottom:1px solid #eef3f1;border-right:1px solid #eef3f1;font-size:12.5px;text-align:left;vertical-align:middle}
+    th:last-child,td:last-child{border-right:0}
+    thead th{position:sticky;top:0;background:#f2f5f4;color:var(--vale-dark-gray);font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+    tbody tr:nth-child(even){background:#fbfcfc}
+    tbody tr:hover{background:#f4f8f7}
+    tbody tr:last-child td{border-bottom:0}
+    td.is-number{font-variant-numeric:tabular-nums;text-align:right}
+    .notice{margin:0 24px 24px;padding:14px 16px;background:linear-gradient(180deg,#fff8db 0%,#fffef5 100%);border:1px solid rgba(236,177,31,.58);border-left:4px solid var(--vale-yellow);border-radius:14px;color:#6d5a1e}
+    @media (max-width:900px){.cards{grid-template-columns:1fr 1fr}.section,.hero{padding-left:18px;padding-right:18px}}
+    @media (max-width:620px){body{padding:12px}.cards{grid-template-columns:1fr}.hero h1{font-size:22px}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="hero">
+      <h1>Relatório Terrock Flyrock</h1>
+      <p>Ferramenta de apoio técnico; não substitui responsável técnico habilitado.</p>
+    </header>
+    <div class="cards">
+      <div class="card"><span>Desmonte</span><strong>${document.getElementById("blastName").value}</strong></div>
+      <div class="card"><span>K</span><strong>${fmt(k,2)}</strong></div>
+      <div class="card"><span>Lmax referência</span><strong>${fmt(ref)} m</strong></div>
+      <div class="card"><span>Raio pessoas</span><strong>${fmt(ref*people)} m</strong></div>
+    </div>
+    <section class="section">
+      <h2>Resultados</h2>
+      ${table(results,resultKeys)}
+    </section>
+    <section class="section">
+      <h2>Desenho inverso</h2>
+      ${table(inverse,["litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","cme_necessaria_kg","alerta"])}
+    </section>
+    <div class="notice">O relatório preserva a lógica técnica do modelo e deve ser revisado por profissional habilitado antes de qualquer decisão operacional.</div>
+  </div>
+</body>
+</html>`;
   document.getElementById("downloadCsv").disabled=false; document.getElementById("downloadReport").disabled=false;
   document.getElementById("downloadKml").disabled=!contour.length;
   document.getElementById("openEarth").disabled=!contour.length;
@@ -451,9 +524,9 @@ function buildKml(){
   const equipment=Number.isFinite(currentRadius)?circleLonLat(currentRadius*(eqFactor/peopleFactor)):[];
   const poly=contourLonLat();
   return `<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Zona de Segurança Flyrock</name>
-<Style id="poly"><LineStyle><color>ff463c00</color><width>3</width></LineStyle><PolyStyle><color>55463c00</color></PolyStyle></Style>
-<Style id="people"><LineStyle><color>ff21bc76</color><width>3</width></LineStyle><PolyStyle><color>2521bc76</color></PolyStyle></Style>
+ <kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Zona de Segurança Flyrock</name>
+<Style id="poly"><LineStyle><color>ff463c00</color><width>3</width></LineStyle><PolyStyle><color>33463c00</color></PolyStyle></Style>
+<Style id="people"><LineStyle><color>ff1fb1ec</color><width>3</width></LineStyle><PolyStyle><color>241fb1ec</color></PolyStyle></Style>
 <Style id="equip"><LineStyle><color>ff7a7e00</color><width>2</width></LineStyle><PolyStyle><color>257a7e00</color></PolyStyle></Style>
 <Placemark><name>Poligonal do desmonte</name><styleUrl>#poly</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>${kmlCoords(poly.concat(poly[0] ? [poly[0]] : []))}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
 <Placemark><name>Raio pessoas ${fmt(currentRadius)} m</name><styleUrl>#people</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>${kmlCoords(people)}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
@@ -482,12 +555,13 @@ function renderTechnicalNotes(valid,ref,people,equipment){
   const avgBurden=mean(valid.map(r=>r.afastamento_m)), avgSpacing=mean(valid.map(r=>r.espacamento_m));
   const lowStemming=valid.filter(r=>r.razao_tampao_profundidade<0.25).length;
   const k=n(document.getElementById("kValue").value);
-  document.getElementById("technicalNotes").innerHTML=[
-    ["Condição crítica",`${critical.litologia || "Desmonte"}: maior Lmax previsto (${fmt(critical.lmax_previsto_m)} m).`],
-    ["Malha média",`Afastamento ${fmt(avgBurden)} m; espaçamento ${fmt(avgSpacing)} m.`],
-    ["K selecionado",`K=${fmt(k,1)}. Atenção: Lmax varia com K²; reduzir K pela metade reduz Lmax para cerca de 1/4.`],
-    ["Confinamento",lowStemming?`${lowStemming} furo(s) com tampão/profundidade < 0,25.`:"Relação tampão/profundidade sem alerta crítico."]
-  ].map(([k,v])=>`<div><strong>${k}</strong><span>${v}</span></div>`).join("");
+  const notes=[
+    {tone:"critical",label:"Condição crítica",value:`${critical.litologia || "Desmonte"}: maior Lmax previsto (${fmt(critical.lmax_previsto_m)} m).`},
+    {tone:"neutral",label:"Malha média",value:`Afastamento ${fmt(avgBurden)} m; espaçamento ${fmt(avgSpacing)} m.`},
+    {tone:"warning",label:"K restringido",value:`K=${fmt(k,1)}. Lmax varia com K²; pequenas reduções em K reduzem fortemente o raio previsto.`},
+    {tone:lowStemming?"warning":"success",label:"Confinamento",value:lowStemming?`${lowStemming} furo(s) com tampão/profundidade < 0,25.`:"Relação tampão/profundidade sem alerta crítico."}
+  ];
+  document.getElementById("technicalNotes").innerHTML=notes.map(n=>`<div class="insight-card insight-card--${n.tone}"><span class="insight-tag">${n.label}</span><span class="insight-copy">${n.value}</span></div>`).join("");
 }
 
 document.getElementById("addHoleBtn").onclick=()=>addHole(emptyHole());
