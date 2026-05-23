@@ -312,7 +312,13 @@ function drawMap(){
   const sx=(canvas.width-2*pad)/(maxX-minX||1), sy=(canvas.height-2*pad)/(maxY-minY||1), s=Math.min(sx,sy);
   const px=x=>pad+(x-minX)*s, py=y=>canvas.height-pad-(y-minY)*s;
   const wx=screenX=>minX+(screenX-pad)/s, wy=screenY=>minY+(canvas.height-pad-screenY)/s;
-  if(document.getElementById("showSatellite").checked) drawSatellite(ctx,{minX,maxX,minY,maxY},px,py);
+  if(document.getElementById("showSatellite").checked){
+    try{
+      drawSatellite(ctx,{minX,maxX,minY,maxY},px,py);
+    }catch(err){
+      console.warn("Camada de satélite indisponível", err);
+    }
+  }
   if(!contour.length) return;
   if(radius>0 && document.getElementById("showRadius").checked){
     ctx.beginPath(); ctx.arc(px(cx),py(cy),radius*s,0,Math.PI*2);
@@ -345,12 +351,18 @@ function drawSatellite(ctx,bounds,px,py){
   for(let x=minTx;x<=maxTx;x++){
     for(let y=minTy;y<=maxTy;y++){
       const img=getTile(z,x,y);
-      if(!img.complete) continue;
+      if(!img.complete || img.naturalWidth===0 || img.naturalHeight===0) continue;
       const nw=tileToLonLat(x,y,z), se=tileToLonLat(x+1,y+1,z);
       const p1=lonLatToUtm(nw.lon,nw.lat,zone,hemi), p2=lonLatToUtm(se.lon,se.lat,zone,hemi);
+      ctx.save();
       ctx.globalAlpha=.8;
-      ctx.drawImage(img,px(p1.easting),py(p1.northing),px(p2.easting)-px(p1.easting),py(p2.northing)-py(p1.northing));
-      ctx.globalAlpha=1;
+      try{
+        ctx.drawImage(img,px(p1.easting),py(p1.northing),px(p2.easting)-px(p1.easting),py(p2.northing)-py(p1.northing));
+      }catch(_){
+        // Ignore individual tile failures so the contour still renders.
+      }finally{
+        ctx.restore();
+      }
     }
   }
 }
@@ -359,8 +371,8 @@ function getTile(z,x,y){
   const key=`${z}/${x}/${y}`;
   if(tileCache.has(key)) return tileCache.get(key);
   const img=new Image();
-  img.crossOrigin="anonymous";
   img.onload=drawMap;
+  img.onerror=drawMap;
   img.src=`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
   tileCache.set(key,img);
   return img;
