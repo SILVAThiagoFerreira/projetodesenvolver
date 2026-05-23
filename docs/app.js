@@ -566,7 +566,8 @@ function renderTechnicalNotes(valid,ref,people,equipment){
 
 document.getElementById("addHoleBtn").onclick=()=>addHole(emptyHole());
 function loadDefaultBlast(){
-  document.getElementById("blastName").value = "Calibração histórica";
+  // Exemplos reais extraídos da base processada a partir dos Excels e do relatório PDF.
+  document.getElementById("blastName").value = "Exemplos da base";
   document.getElementById("kPreset").value = "14.2756";
   document.getElementById("kValue").value = "14.2756";
   document.getElementById("angleValue").value = "45";
@@ -575,9 +576,9 @@ function loadDefaultBlast(){
   document.getElementById("targetRadius").value = "700";
   document.getElementById("referenceMode").value = "median";
   holes=[];
-  addHole({litologia:"SULFETO",densidade_litologica_g_cm3:3.4,diametro_furo_pol:5.5,profundidade_m:10,afastamento_m:2.55,espacamento_m:3,tampao_real_m:2.3,carga_maxima_espera_kg:150,massa_desmontada_kt:30,razao_carga:0.45});
-  addHole({litologia:"OXIDADO",densidade_litologica_g_cm3:3.0,diametro_furo_pol:5.5,profundidade_m:10,afastamento_m:5.1,espacamento_m:5.3,tampao_real_m:3,carga_maxima_espera_kg:150,massa_desmontada_kt:90,razao_carga:0.25});
-  addHole({litologia:"ESTÉRIL",densidade_litologica_g_cm3:2.69,diametro_furo_pol:5.5,profundidade_m:10,afastamento_m:4.2,espacamento_m:4.8,tampao_real_m:2.6,carga_maxima_espera_kg:150,massa_desmontada_kt:70,razao_carga:0.35});
+  addHole({litologia:"CE",densidade_litologica_g_cm3:3.5,diametro_furo_pol:5.75,profundidade_m:9.6,afastamento_m:2.2,espacamento_m:4.4,tampao_real_m:3.1,carga_maxima_espera_kg:124,massa_desmontada_kt:325.24800000000005,razao_carga:0.3812475403384494});
+  addHole({litologia:"HF",densidade_litologica_g_cm3:3.5,diametro_furo_pol:5.75,profundidade_m:9.0,afastamento_m:2.2,espacamento_m:4.4,tampao_real_m:2.9,carga_maxima_espera_kg:120,massa_desmontada_kt:304.9200000000001,razao_carga:0.3935458480913025});
+  addHole({litologia:"HC",densidade_litologica_g_cm3:3.5,diametro_furo_pol:5.75,profundidade_m:10.0,afastamento_m:2.2,espacamento_m:4.4,tampao_real_m:3,carga_maxima_espera_kg:123,massa_desmontada_kt:338.80000000000007,razao_carga:0.3630460448642266});
   run(true);
 }
 
