@@ -15,7 +15,7 @@
         <div class="brand__copy">
           <p class="kicker">Vale · Ferramenta técnica</p>
           <h1>Sistema de Análise de Flyrock em Raio de Segurança para Desmonte</h1>
-          <p>Simulação local de zona de segurança com parâmetros de fogo e contorno DXF.</p>
+          <p>Simulação local de zona de segurança com fundo satélite, contorno DXF e raios calculados.</p>
         </div>
       </div>
       <span class="badge">Ferramenta local</span>
@@ -147,16 +147,14 @@
             <button id="zoomIn" class="secondary">Zoom +</button>
             <button id="zoomOut" class="secondary">Zoom -</button>
             <button id="resetView" class="secondary">Resetar</button>
-            <label class="toggle"><input id="showSatellite" type="checkbox" checked> Imagem base</label>
             <label class="toggle"><input id="showRadius" type="checkbox" checked> Raios</label>
           </div>
         </div>
         <canvas id="mapCanvas" width="1280" height="680"></canvas>
         <div class="legend">
           <span><i class="poly"></i> Poligonal</span>
-          <span><i class="equip"></i> Equipamentos</span>
           <span><i class="people"></i> Pessoas</span>
-          <span><i class="sat"></i> Satélite</span>
+          <span><i class="sat"></i> Fundo satélite</span>
         </div>
         <div id="spatialStats" class="stats"></div>
       </section>

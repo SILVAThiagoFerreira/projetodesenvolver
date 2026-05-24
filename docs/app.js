@@ -9,6 +9,7 @@ let dragStart = null;
 const tileCache = new Map();
 let charts = [];
 let reportHtml = "";
+let satelliteLoadAttempted = false;
 
 const V = {
   green: "#007E7A",
@@ -233,8 +234,12 @@ function parseDxf(text,scale){
   const flushEntity = ()=>{
     if(currentType === "LINE" && lineState && Number.isFinite(lineState.x1) && Number.isFinite(lineState.y1) && Number.isFinite(lineState.x2) && Number.isFinite(lineState.y2)){
       segments.push([[lineState.x1,lineState.y1],[lineState.x2,lineState.y2]]);
-    }else if(currentType === "LWPOLYLINE" && polylineState && polylineState.closed && polylineState.pts.length >= 3){
-      polylines.push({pts: polylineState.pts, closed: polylineState.closed});
+    }else if(currentType === "LWPOLYLINE" && polylineState && polylineState.pts.length >= 3){
+      const pts = polylineState.pts.slice();
+      const [fx, fy] = pts[0];
+      const [lx, ly] = pts[pts.length - 1];
+      if(Math.hypot(fx - lx, fy - ly) > 0.001) pts.push([fx, fy]);
+      polylines.push({pts, closed: true});
     }
     currentType = null;
     lineState = null;
@@ -312,11 +317,12 @@ function drawMap(){
   const sx=(canvas.width-2*pad)/(maxX-minX||1), sy=(canvas.height-2*pad)/(maxY-minY||1), s=Math.min(sx,sy);
   const px=x=>pad+(x-minX)*s, py=y=>canvas.height-pad-(y-minY)*s;
   const wx=screenX=>minX+(screenX-pad)/s, wy=screenY=>minY+(canvas.height-pad-screenY)/s;
-  if(document.getElementById("showSatellite").checked){
-    try{
-      drawSatellite(ctx,{minX,maxX,minY,maxY},px,py);
-    }catch(err){
+  try{
+    drawSatellite(ctx,{minX,maxX,minY,maxY},px,py);
+  }catch(err){
+    if(!satelliteLoadAttempted){
       console.warn("Camada de satélite indisponível", err);
+      satelliteLoadAttempted = true;
     }
   }
   if(!contour.length) return;
@@ -647,7 +653,7 @@ document.getElementById("kValue").addEventListener("input",()=>{
 });
 ["angleValue","peopleFactor","equipmentFactor","targetRadius","referenceMode"].forEach(id=>document.getElementById(id).addEventListener("input",()=>run(true)));
 ["dxfUnit"].forEach(id=>document.getElementById(id).addEventListener("input",()=>{viewBounds=null; drawMap();}));
-["showSatellite","showRadius","utmZone","utmHemisphere"].forEach(id=>document.getElementById(id).addEventListener("input",drawMap));
+["showRadius","utmZone","utmHemisphere"].forEach(id=>document.getElementById(id).addEventListener("input",drawMap));
 document.getElementById("zoomIn").onclick=()=>zoomView(.72);
 document.getElementById("zoomOut").onclick=()=>zoomView(1.38);
 document.getElementById("resetView").onclick=()=>{viewBounds=getInitialBounds(); drawMap();};
