@@ -70,7 +70,7 @@ O pipeline Python gera:
 
 ## GitHub Pages
 
-O site está em `docs/` e é publicado pelo workflow `.github/workflows/pages.yml`. A versão web usa JavaScript no navegador para ler os Excel, calcular os indicadores principais, gerar gráficos e baixar CSV/HTML.
+O site está em `docs/` e é publicado pelo workflow `.github/workflows/pages.yml` sempre que há push na branch `main`. A versão web usa JavaScript no navegador para ler os Excel, calcular os indicadores principais, gerar gráficos e baixar CSV/HTML.
 
 ## Limitações
 
