@@ -2,6 +2,7 @@ const gravity = 9.80665;
 let holes = [];
 let results = [];
 let contour = [];
+let contourGeo = [];
 let currentRadius = NaN;
 let viewBounds = null;
 let isDragging = false;
@@ -126,6 +127,91 @@ function inverseRows(valid,k,angle,target,peopleFactor){
       alerta:tampaoNec<r.profundidade_m && cargaNec>0 ? "viavel como triagem" : "requer redesenho tecnico"
     };
   });
+}
+
+function projectGeoContour(points, zone, hemisphere){
+  return points.map(([lon,lat])=>{
+    const utm = lonLatToUtm(lon,lat,zone,hemisphere);
+    return [utm.easting, utm.northing];
+  });
+}
+
+function syncContourProjection(){
+  if(!contourGeo.length) return;
+  const zone=n(document.getElementById("utmZone").value), hemisphere=document.getElementById("utmHemisphere").value;
+  if(!(zone>=1 && zone<=60)) return;
+  contour=projectGeoContour(contourGeo, zone, hemisphere);
+}
+
+function detectUtmZoneFromGeo(points){
+  if(!points.length) return {zone:23, hemisphere:"S"};
+  const lon=mean(points.map(([x])=>x)), lat=mean(points.map(([,y])=>y));
+  const zone=Math.max(1,Math.min(60,Math.floor((lon+180)/6)+1));
+  return {zone, hemisphere:lat>=0?"N":"S"};
+}
+
+function parseKmlCoordinateList(text){
+  const pts=String(text ?? "").trim().split(/\s+/).map(token=>token.split(",")).map(parts=>[n(parts[0]),n(parts[1])]).filter(([lon,lat])=>Number.isFinite(lon)&&Number.isFinite(lat));
+  if(pts.length>1){
+    const [fx,fy]=pts[0], [lx,ly]=pts[pts.length-1];
+    if(Math.hypot(fx-lx,fy-ly)<1e-12) pts.pop();
+  }
+  return pts;
+}
+
+function approximateGeoArea(points){
+  if(points.length<3) return 0;
+  const lat0=mean(points.map(([,lat])=>lat))*Math.PI/180;
+  const cosLat=Math.cos(lat0);
+  const projected=points.map(([lon,lat])=>[lon*cosLat,lat]);
+  const stats=polygonStats(projected);
+  return stats ? stats.area_m2 : 0;
+}
+
+function parseKmlContour(text){
+  const xml=new DOMParser().parseFromString(text,"application/xml");
+  if(xml.querySelector("parsererror")) return [];
+  const nodes=xml.getElementsByTagNameNS ? Array.from(xml.getElementsByTagNameNS("*","coordinates")) : Array.from(xml.getElementsByTagName("coordinates"));
+  const candidates=nodes
+    .map(node=>parseKmlCoordinateList(node.textContent))
+    .filter(pts=>pts.length>=3)
+    .map(pts=>({pts,area:approximateGeoArea(pts)}))
+    .sort((a,b)=>b.area-a.area);
+  return candidates[0]?.pts ?? [];
+}
+
+async function readKmzKmlText(file){
+  if(typeof JSZip === "undefined") throw new Error("Suporte KMZ indisponível.");
+  const zip=await JSZip.loadAsync(await file.arrayBuffer());
+  const kmlName=Object.keys(zip.files).find(name=>/\.kml$/i.test(name) && !zip.files[name].dir);
+  if(!kmlName) throw new Error("KMZ sem arquivo KML.");
+  return zip.file(kmlName).async("text");
+}
+
+async function importContourFile(file){
+  const name=file.name.toLowerCase();
+  if(name.endsWith(".kmz") || name.endsWith(".kml")){
+    const text=name.endsWith(".kmz") ? await readKmzKmlText(file) : await file.text();
+    contourGeo=parseKmlContour(text);
+    if(!contourGeo.length) throw new Error("Não foi possível encontrar a poligonal no KMZ/KML.");
+    const {zone, hemisphere}=detectUtmZoneFromGeo(contourGeo);
+    document.getElementById("utmZone").value=String(zone);
+    document.getElementById("utmHemisphere").value=hemisphere;
+    syncContourProjection();
+    viewBounds=null;
+    document.getElementById("exampleStatus").textContent=`Poligonal ${name.endsWith(".kmz") ? "KMZ" : "KML"} importada. Zona UTM ${zone}${hemisphere} selecionada automaticamente.`;
+    renderSpatialStats();
+    run(true);
+    drawMap();
+    return;
+  }
+  contourGeo=[];
+  contour=parseDxf(await file.text(),n(document.getElementById("dxfUnit").value));
+  viewBounds=null;
+  document.getElementById("exampleStatus").textContent="Poligonal DXF importada. Ajuste a Zona UTM e o Hemisfério se necessário.";
+  renderSpatialStats();
+  run(true);
+  drawMap();
 }
 
 function pointKey(point, eps=0.001){
@@ -308,6 +394,7 @@ function centroid(pts){
 }
 
 function drawMap(){
+  syncContourProjection();
   const canvas=document.getElementById("mapCanvas"), ctx=canvas.getContext("2d");
   ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle="#f7faf9"; ctx.fillRect(0,0,canvas.width,canvas.height);
   const [cx,cy]=centroid(contour), radius=Number.isFinite(currentRadius)?currentRadius:0, pad=42;
@@ -431,6 +518,7 @@ function lonLatToUtm(lon,lat,zone,hemisphere){
 }
 
 function getInitialBounds(){
+  syncContourProjection();
   const cst=polygonStats(contour), [cx,cy]=centroid(contour), radius=Number.isFinite(currentRadius)?currentRadius:0;
   if(cst){
     const margin=Math.max(40,radius*1.15);
@@ -457,6 +545,7 @@ function panView(dx,dy){
 }
 
 function renderSpatialStats(){
+  syncContourProjection();
   const dxf=polygonStats(contour);
   const items=[];
   if(dxf){items.push(["Área DXF",`${fmt(dxf.area_m2)} m²`],["Perímetro DXF",`${fmt(dxf.perimetro_m)} m`],["Largura x altura",`${fmt(dxf.largura_m)} x ${fmt(dxf.altura_m)} m`],["Pontos DXF",dxf.pontos]);}
@@ -550,11 +639,14 @@ function run(silent=false){
 }
 
 function contourLonLat(){
+  syncContourProjection();
+  if(contourGeo.length) return contourGeo.map(([lon,lat])=>[lon,lat]);
   const zone=n(document.getElementById("utmZone").value), hemi=document.getElementById("utmHemisphere").value;
   return contour.map(([x,y])=>utmToLatLon(x,y,zone,hemi));
 }
 
 function circleLonLat(radius,steps=96){
+  syncContourProjection();
   const [cx,cy]=centroid(contour), zone=n(document.getElementById("utmZone").value), hemi=document.getElementById("utmHemisphere").value;
   const pts=[];
   for(let i=0;i<=steps;i++){
@@ -638,11 +730,12 @@ document.getElementById("downloadCsv").onclick=()=>download("base_furos_terrock.
 document.getElementById("downloadReport").onclick=()=>download("relatorio_terrock_flyrock.html",reportHtml,"text/html;charset=utf-8");
 document.getElementById("downloadKml").onclick=()=>download("zona_seguranca_google_earth.kml",buildKml(),"application/vnd.google-earth.kml+xml;charset=utf-8");
 document.getElementById("openEarth").onclick=()=>{
-  if(!contour.length) return;
-  const [cx,cy]=centroid(contour), p=utmToLatLon(cx,cy,n(document.getElementById("utmZone").value),document.getElementById("utmHemisphere").value);
-  window.open(`https://earth.google.com/web/@${p.lat},${p.lon},800a,1200d,35y,0h,0t,0r`,"_blank");
+  const geo=contourLonLat();
+  if(!geo.length) return;
+  const lon=mean(geo.map(([x])=>x)), lat=mean(geo.map(([,y])=>y));
+  window.open(`https://earth.google.com/web/@${lat},${lon},800a,1200d,35y,0h,0t,0r`,"_blank");
 };
-document.getElementById("dxfFile").onchange=async e=>{const file=e.target.files[0]; if(!file)return; contour=parseDxf(await file.text(),n(document.getElementById("dxfUnit").value)); viewBounds=getInitialBounds(); run(true); renderSpatialStats();};
+document.getElementById("dxfFile").onchange=async e=>{const file=e.target.files[0]; if(!file)return; try{await importContourFile(file);}catch(err){document.getElementById("exampleStatus").textContent=err?.message || "Não foi possível importar o contorno.";}};
 document.getElementById("kPreset").addEventListener("input",e=>{
   if(e.target.value !== "custom") document.getElementById("kValue").value = e.target.value;
   run(true);
@@ -653,7 +746,9 @@ document.getElementById("kValue").addEventListener("input",()=>{
 });
 ["angleValue","peopleFactor","equipmentFactor","targetRadius","referenceMode"].forEach(id=>document.getElementById(id).addEventListener("input",()=>run(true)));
 ["dxfUnit"].forEach(id=>document.getElementById(id).addEventListener("input",()=>{viewBounds=null; drawMap();}));
-["showRadius","utmZone","utmHemisphere"].forEach(id=>document.getElementById(id).addEventListener("input",drawMap));
+document.getElementById("showRadius").addEventListener("input",drawMap);
+document.getElementById("utmZone").addEventListener("input",()=>{viewBounds=null; drawMap();});
+document.getElementById("utmHemisphere").addEventListener("input",()=>{viewBounds=null; drawMap();});
 document.getElementById("zoomIn").onclick=()=>zoomView(.72);
 document.getElementById("zoomOut").onclick=()=>zoomView(1.38);
 document.getElementById("resetView").onclick=()=>{viewBounds=getInitialBounds(); drawMap();};

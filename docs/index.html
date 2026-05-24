@@ -6,6 +6,7 @@
   <title>Sistema de Análise de Flyrock em Raio de Segurança para Desmonte</title>
   <link rel="stylesheet" href="./styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -15,7 +16,7 @@
         <div class="brand__copy">
           <p class="kicker">Vale · Ferramenta técnica</p>
           <h1>Sistema de Análise de Flyrock em Raio de Segurança para Desmonte</h1>
-          <p>Simulação local de zona de segurança com fundo satélite, contorno DXF e raios calculados.</p>
+          <p>Simulação local de zona de segurança com fundo satélite, contorno DXF/KMZ e raios calculados.</p>
         </div>
       </div>
       <span class="badge">Ferramenta local</span>
@@ -79,7 +80,7 @@
           <h2>Camadas</h2>
         </div>
         <div class="file-stack">
-          <label>Contorno DXF<input id="dxfFile" type="file" accept=".dxf"></label>
+          <label>Contorno DXF/KMZ<input id="dxfFile" type="file" accept=".dxf,.kml,.kmz"></label>
         </div>
         <p class="lead tight" id="exampleStatus">Carregando exemplo: poligonal de desmonte.</p>
       </section>
