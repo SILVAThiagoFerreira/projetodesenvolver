@@ -13,13 +13,13 @@ let reportHtml = "";
 let satelliteLoadAttempted = false;
 
 const V = {
-  green: "#007E7A",
-  yellow: "#ECB11F",
-  gray: "#747678",
-  dark: "#555555",
-  black: "#303030",
-  border: "#E1E7E5",
-  polyStroke: "#003C46",
+  green: "#1A1A1A",
+  yellow: "#555555",
+  gray: "#999999",
+  dark: "#3A3A3A",
+  black: "#262626",
+  border: "#E5E5E5",
+  polyStroke: "#1A1A1A",
 };
 
 const fields = [
@@ -396,7 +396,7 @@ function centroid(pts){
 function drawMap(){
   syncContourProjection();
   const canvas=document.getElementById("mapCanvas"), ctx=canvas.getContext("2d");
-  ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle="#f7faf9"; ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle="#F5F5F5"; ctx.fillRect(0,0,canvas.width,canvas.height);
   const [cx,cy]=centroid(contour), radius=Number.isFinite(currentRadius)?currentRadius:0, pad=42;
   const baseBounds = getInitialBounds();
   if(!viewBounds) viewBounds = baseBounds;
@@ -415,18 +415,18 @@ function drawMap(){
   if(!contour.length) return;
   if(radius>0 && document.getElementById("showRadius").checked){
     ctx.beginPath(); ctx.arc(px(cx),py(cy),radius*s,0,Math.PI*2);
-    ctx.fillStyle="rgba(236,177,31,.12)"; ctx.fill(); ctx.strokeStyle=V.yellow; ctx.lineWidth=2.5; ctx.setLineDash([9,6]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle="rgba(26,26,26,.08)"; ctx.fill(); ctx.strokeStyle="#555555"; ctx.lineWidth=2; ctx.setLineDash([8,5]); ctx.stroke(); ctx.setLineDash([]);
     const eq=n(document.getElementById("equipmentFactor").value), pe=n(document.getElementById("peopleFactor").value), equipmentRadius=radius*(eq/pe);
     if(Number.isFinite(equipmentRadius)&&equipmentRadius>0){
       ctx.beginPath(); ctx.arc(px(cx),py(cy),equipmentRadius*s,0,Math.PI*2);
-      ctx.fillStyle="rgba(0,126,122,.11)"; ctx.fill(); ctx.strokeStyle=V.green; ctx.lineWidth=2; ctx.stroke();
+      ctx.fillStyle="rgba(26,26,26,.05)"; ctx.fill(); ctx.strokeStyle="#999999"; ctx.lineWidth=1.5; ctx.stroke();
     }
   }
   ctx.beginPath(); contour.forEach(([x,y],i)=>{if(i)ctx.lineTo(px(x),py(y)); else ctx.moveTo(px(x),py(y))}); ctx.closePath();
-  ctx.fillStyle="rgba(0,60,70,.18)"; ctx.fill(); ctx.strokeStyle=V.polyStroke; ctx.lineWidth=3; ctx.stroke();
-  ctx.beginPath(); ctx.arc(px(cx),py(cy),4,0,Math.PI*2); ctx.fillStyle=V.polyStroke; ctx.fill();
-  ctx.fillStyle=V.black; ctx.font="600 12px Arial"; ctx.fillText(`Raio pessoas: ${fmt(currentRadius)} m`, px(cx)+10, py(cy)-10);
-  ctx.font="12px Arial"; ctx.fillText(`Poligonal do desmonte`, px(cx)+10, py(cy)+8);
+  ctx.fillStyle="rgba(26,26,26,.12)"; ctx.fill(); ctx.strokeStyle=V.polyStroke; ctx.lineWidth=2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(px(cx),py(cy),3,0,Math.PI*2); ctx.fillStyle=V.polyStroke; ctx.fill();
+  ctx.fillStyle=V.black; ctx.font="600 11px Inter, Arial"; ctx.fillText(`Raio pessoas: ${fmt(currentRadius)} m`, px(cx)+10, py(cy)-10);
+  ctx.font="11px Inter, Arial"; ctx.fillStyle=V.gray; ctx.fillText(`Poligonal do desmonte`, px(cx)+10, py(cy)+8);
   drawMap.lastTransform={px,py,wx,wy,s,pad};
 }
 
@@ -573,7 +573,7 @@ function run(silent=false){
   drawMap();
   charts.forEach(c=>c.destroy());
   charts=[
-    new Chart(document.getElementById("lmaxChart"),{type:"bar",data:{labels:valid.map((r,i)=>r.litologia || `Condição ${i+1}`),datasets:[{label:"Lmax previsto (m)",data:lmax,backgroundColor:V.green,borderColor:V.green,borderRadius:10,borderSkipped:false,maxBarThickness:52}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:4,right:8,bottom:0,left:8}},plugins:{legend:{display:false},title:{display:true,text:"Lmax previsto por condição",color:V.dark,font:{family:"Arial",size:14,weight:"700"},padding:{bottom:12}},tooltip:{backgroundColor:V.black,titleColor:"#fff",bodyColor:"#fff",padding:12,cornerRadius:10,displayColors:false}},scales:{x:{grid:{display:false},ticks:{color:V.dark,font:{family:"Arial",size:12,weight:"600"},maxRotation:0,autoSkip:false}},y:{beginAtZero:true,grid:{color:V.border,drawBorder:false},ticks:{color:V.dark,font:{family:"Arial",size:12}},title:{display:true,text:"m",color:V.gray,font:{family:"Arial",size:12,weight:"700"}}}}}}),
+    new Chart(document.getElementById("lmaxChart"),{type:"bar",data:{labels:valid.map((r,i)=>r.litologia || `Condição ${i+1}`),datasets:[{label:"Lmax previsto (m)",data:lmax,backgroundColor:"#1A1A1A",borderColor:"#1A1A1A",borderRadius:0,borderSkipped:false,maxBarThickness:48}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:4,right:8,bottom:0,left:8}},plugins:{legend:{display:false},title:{display:true,text:"Lmax previsto por condição",color:"#3A3A3A",font:{family:"Inter, Arial",size:13,weight:"600"},padding:{bottom:12}},tooltip:{backgroundColor:"#1A1A1A",titleColor:"#fff",bodyColor:"#fff",padding:10,borderRadius:0,displayColors:false}},scales:{x:{grid:{display:false},ticks:{color:"#555555",font:{family:"Inter, Arial",size:11,weight:"500"},maxRotation:0,autoSkip:false}},y:{beginAtZero:true,grid:{color:"#E5E5E5",drawBorder:false},ticks:{color:"#555555",font:{family:"Inter, Arial",size:11}},title:{display:true,text:"m",color:"#999999",font:{family:"Inter, Arial",size:11,weight:"600"}}}}}}),
   ];
   reportHtml=`<!doctype html>
 <html lang="pt-BR">
@@ -581,32 +581,31 @@ function run(silent=false){
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Relatório Terrock Flyrock</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    :root{--vale-green:#007E7A;--vale-yellow:#ECB11F;--vale-gray:#747678;--vale-dark-gray:#555555;--vale-black-gray:#303030;--vale-bg:#F7F9F8;--vale-surface:#FFFFFF;--vale-border:#E1E7E5;--vale-soft-yellow:#FFF6D8;--vale-soft-green:#E6F2F1;--shadow:0 14px 28px rgba(48,48,48,.07)}
+    :root{--gray-50:#F5F5F5;--gray-100:#EEEEEE;--gray-200:#E0E0E0;--gray-300:#CCCCCC;--gray-400:#999999;--gray-500:#777777;--gray-600:#555555;--gray-700:#3A3A3A;--gray-800:#262626;--gray-900:#1A1A1A;--white:#FFFFFF;--border:#E5E5E5}
     *{box-sizing:border-box}
-    body{margin:0;padding:24px;background:var(--vale-bg);color:var(--vale-dark-gray);font-family:Arial,Helvetica,sans-serif;line-height:1.5}
-    .shell{max-width:1120px;margin:0 auto;background:var(--vale-surface);border:1px solid var(--vale-border);border-radius:18px;overflow:hidden;box-shadow:var(--shadow)}
-    .hero{padding:22px 24px;background:linear-gradient(135deg,#005e5a 0%,var(--vale-green) 72%,#006865 100%);color:#fff}
-    .hero h1{margin:0 0 8px;font-size:26px;line-height:1.15;letter-spacing:-.03em}
-    .hero p{margin:0;color:rgba(255,255,255,.84);font-size:14px}
+    body{margin:0;padding:24px;background:var(--gray-50);color:var(--gray-700);font-family:'Inter',Arial,sans-serif;line-height:1.5}
+    .shell{max-width:1080px;margin:0 auto;background:var(--white);border:1px solid var(--border);overflow:hidden}
+    .hero{padding:20px 24px;background:var(--gray-900);color:var(--white)}
+    .hero h1{margin:0 0 6px;font-size:20px;font-weight:700;letter-spacing:-0.02em}
+    .hero p{margin:0;color:var(--gray-400);font-size:12px}
     .section{padding:20px 24px}
-    .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:0 24px 4px}
-    .card{padding:14px;border:1px solid var(--vale-border);border-radius:14px;background:#fff;box-shadow:0 8px 18px rgba(48,48,48,.04)}
-    .card span{display:block;color:var(--vale-gray);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
-    .card strong{display:block;margin-top:4px;color:var(--vale-green);font-size:24px;line-height:1.05}
-    h2{margin:0 0 12px;font-size:18px;color:var(--vale-black-gray)}
-    .table-wrap{overflow:auto;border:1px solid var(--vale-border);border-radius:14px;background:#fff}
-    table{width:100%;border-collapse:separate;border-spacing:0;background:#fff}
-    th,td{padding:10px 12px;border-bottom:1px solid #eef3f1;border-right:1px solid #eef3f1;font-size:12.5px;text-align:left;vertical-align:middle}
-    th:last-child,td:last-child{border-right:0}
-    thead th{position:sticky;top:0;background:#f2f5f4;color:var(--vale-dark-gray);font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
-    tbody tr:nth-child(even){background:#fbfcfc}
-    tbody tr:hover{background:#f4f8f7}
+    .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
+    .card{padding:14px;background:var(--white)}
+    .card span{display:block;color:var(--gray-400);font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase}
+    .card strong{display:block;margin-top:4px;color:var(--gray-900);font-size:22px;line-height:1.05;font-weight:700}
+    h2{margin:0 0 12px;font-size:15px;font-weight:700;color:var(--gray-900)}
+    .table-wrap{overflow:auto;border:1px solid var(--border);background:var(--white)}
+    table{width:100%;border-collapse:collapse;background:var(--white)}
+    th,td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:12px;text-align:left;vertical-align:middle}
+    thead th{position:sticky;top:0;background:var(--gray-50);color:var(--gray-600);font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;border-bottom:1px solid var(--gray-200)}
+    tbody tr:hover{background:var(--gray-50)}
     tbody tr:last-child td{border-bottom:0}
     td.is-number{font-variant-numeric:tabular-nums;text-align:right}
-    .notice{margin:0 24px 24px;padding:14px 16px;background:linear-gradient(180deg,#fff8db 0%,#fffef5 100%);border:1px solid rgba(236,177,31,.58);border-left:4px solid var(--vale-yellow);border-radius:14px;color:#6d5a1e}
-    @media (max-width:900px){.cards{grid-template-columns:1fr 1fr}.section,.hero{padding-left:18px;padding-right:18px}}
-    @media (max-width:620px){body{padding:12px}.cards{grid-template-columns:1fr}.hero h1{font-size:22px}}
+    .notice{margin:0 24px 24px;padding:12px 16px;background:var(--gray-50);border:1px solid var(--border);border-left:3px solid var(--gray-400);color:var(--gray-500);font-size:11px}
+    @media (max-width:900px){.cards{grid-template-columns:1fr 1fr}.section,.hero{padding-left:16px;padding-right:16px}}
+    @media (max-width:620px){body{padding:12px}.cards{grid-template-columns:1fr}.hero h1{font-size:18px}}
   </style>
 </head>
 <body>
