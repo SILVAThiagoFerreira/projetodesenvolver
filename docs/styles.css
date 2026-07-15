@@ -188,3 +188,7 @@ td input[type=number] { text-align: right; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+/* Linguagem geométrica da ferramenta: painéis e controles retos, sem pílulas. */
+*, *::before, *::after { border-radius: 0 !important; }
+.panel-title span { width: 30px; min-width: 30px; padding: 0; }

@@ -207,6 +207,7 @@ async function importContourFile(file){
   }
   contourGeo=[];
   contour=parseDxf(await file.text(),n(document.getElementById("dxfUnit").value));
+  if(!contour.length) throw new Error("Não foi possível encontrar uma poligonal fechada no DXF. Verifique se o arquivo contém LINE, LWPOLYLINE ou POLYLINE.");
   viewBounds=null;
   document.getElementById("exampleStatus").textContent="Poligonal DXF importada. Ajuste a Zona UTM e o Hemisfério se necessário.";
   renderSpatialStats();
@@ -304,66 +305,95 @@ function chainClosedComponent(segments, indices){
 }
 
 function parseDxf(text,scale){
-  const lines=text.replace(/\r/g,"").split("\n").map(s=>s.trim());
+  const lines=String(text ?? "").replace(/\r/g,"").split("\n").map(s=>s.trim());
   const segments=[];
   const polylines=[];
-  let currentType = null;
-  let lineState = null;
-  let polylineState = null;
-  let index = 0;
+  let currentType=null;
+  let entity=null;
+  let classicPolyline=null;
+  let index=0;
 
-  const nextToken = ()=>{
-    while(index < lines.length && lines[index] === "") index += 1;
-    return index < lines.length ? lines[index++] : null;
+  const nextToken=()=>{
+    while(index<lines.length && lines[index]==="") index+=1;
+    return index<lines.length ? lines[index++] : null;
   };
-
-  const flushEntity = ()=>{
-    if(currentType === "LINE" && lineState && Number.isFinite(lineState.x1) && Number.isFinite(lineState.y1) && Number.isFinite(lineState.x2) && Number.isFinite(lineState.y2)){
-      segments.push([[lineState.x1,lineState.y1],[lineState.x2,lineState.y2]]);
-    }else if(currentType === "LWPOLYLINE" && polylineState && polylineState.pts.length >= 3){
-      const pts = polylineState.pts.slice();
-      const [fx, fy] = pts[0];
-      const [lx, ly] = pts[pts.length - 1];
-      if(Math.hypot(fx - lx, fy - ly) > 0.001) pts.push([fx, fy]);
-      polylines.push({pts, closed: true});
+  const closePoints=pts=>{
+    const out=pts.slice();
+    if(out.length>=2){
+      const [fx,fy]=out[0], [lx,ly]=out[out.length-1];
+      if(Math.hypot(fx-lx,fy-ly)>0.001) out.push([fx,fy]);
     }
-    currentType = null;
-    lineState = null;
-    polylineState = null;
+    return out;
+  };
+  const flushEntity=()=>{
+    if(currentType==="LINE" && entity && [entity.x1,entity.y1,entity.x2,entity.y2].every(Number.isFinite)){
+      segments.push([[entity.x1,entity.y1],[entity.x2,entity.y2]]);
+    }else if(currentType==="LWPOLYLINE" && entity?.pts?.length>=3){
+      polylines.push({pts:closePoints(entity.pts),closed:Boolean(entity.closed)});
+    }else if(currentType==="VERTEX" && classicPolyline && entity && Number.isFinite(entity.x) && Number.isFinite(entity.y)){
+      classicPolyline.pts.push([entity.x,entity.y]);
+    }
+    currentType=null;
+    entity=null;
+  };
+  const flushClassic=()=>{
+    if(classicPolyline?.pts?.length>=3) polylines.push({pts:closePoints(classicPolyline.pts),closed:classicPolyline.closed});
+    classicPolyline=null;
   };
 
-  while(index < lines.length){
-    const code = nextToken();
-    if(code === null) break;
-    const value = nextToken();
-    if(value === null) break;
-    if(code === "0"){
+  while(index<lines.length){
+    const code=nextToken();
+    if(code===null) break;
+    const value=nextToken();
+    if(value===null) break;
+    if(code==="0"){
+      if(value==="POLYLINE"){
+        flushEntity();
+        flushClassic();
+        currentType="POLYLINE";
+        classicPolyline={pts:[],closed:false};
+        continue;
+      }
+      if(value==="VERTEX" && classicPolyline){
+        flushEntity();
+        currentType="VERTEX";
+        entity={x:NaN,y:NaN};
+        continue;
+      }
+      if(value==="SEQEND" && classicPolyline){
+        flushEntity();
+        flushClassic();
+        currentType="SEQEND";
+        entity=null;
+        continue;
+      }
       flushEntity();
-      currentType = value;
-      if(currentType === "LINE"){
-        lineState = {x1:NaN,y1:NaN,x2:NaN,y2:NaN};
-      }else if(currentType === "LWPOLYLINE"){
-        polylineState = {pts:[], closed:false, pendingX:null};
-      }
+      currentType=value;
+      if(currentType==="LINE") entity={x1:NaN,y1:NaN,x2:NaN,y2:NaN};
+      else if(currentType==="LWPOLYLINE") entity={pts:[],closed:false,pendingX:NaN};
       continue;
     }
-    if(currentType === "LINE" && lineState){
-      if(code === "10") lineState.x1 = n(value) * scale;
-      else if(code === "20") lineState.y1 = n(value) * scale;
-      else if(code === "11") lineState.x2 = n(value) * scale;
-      else if(code === "21") lineState.y2 = n(value) * scale;
-      continue;
-    }
-    if(currentType === "LWPOLYLINE" && polylineState){
-      if(code === "70") polylineState.closed = (Number(value) & 1) === 1;
-      else if(code === "10") polylineState.pendingX = n(value) * scale;
-      else if(code === "20" && Number.isFinite(polylineState.pendingX)){
-        polylineState.pts.push([polylineState.pendingX, n(value) * scale]);
-        polylineState.pendingX = null;
+    if(currentType==="LINE" && entity){
+      if(code==="10") entity.x1=n(value)*scale;
+      else if(code==="20") entity.y1=n(value)*scale;
+      else if(code==="11") entity.x2=n(value)*scale;
+      else if(code==="21") entity.y2=n(value)*scale;
+    }else if(currentType==="LWPOLYLINE" && entity){
+      if(code==="70") entity.closed=(Number(value)&1)===1;
+      else if(code==="10") entity.pendingX=n(value)*scale;
+      else if(code==="20" && Number.isFinite(entity.pendingX)){
+        entity.pts.push([entity.pendingX,n(value)*scale]);
+        entity.pendingX=NaN;
       }
+    }else if(currentType==="POLYLINE" && classicPolyline){
+      if(code==="70") classicPolyline.closed=(Number(value)&1)===1;
+    }else if(currentType==="VERTEX" && entity){
+      if(code==="10") entity.x=n(value)*scale;
+      else if(code==="20") entity.y=n(value)*scale;
     }
   }
   flushEntity();
+  flushClassic();
 
   const lineContours = collectSegmentComponents(segments)
     .map(component=>chainClosedComponent(segments, component))
