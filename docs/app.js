@@ -11,6 +11,7 @@ const tileCache = new Map();
 let charts = [];
 let reportHtml = "";
 let satelliteLoadAttempted = false;
+let dxfSourceText = "";
 
 const V = {
   green: "#1A1A1A",
@@ -30,6 +31,25 @@ const fields = [
 ];
 
 function n(v){const x=Number(String(v ?? "").replace(",",".")); return Number.isFinite(x)?x:NaN}
+function resolveDxfScale(text,selected){
+  if(selected !== "auto"){
+    const manual=n(selected);
+    return Number.isFinite(manual) && manual>0 ? manual : 1;
+  }
+  const pairs=String(text ?? "").replace(/\r/g,"").split("\n").map(s=>s.trim());
+  for(let i=0;i<pairs.length-1;i+=2){
+    if(pairs[i]==="9" && pairs[i+1]==="$INSUNITS"){
+      for(let j=i+2;j<pairs.length-1;j+=2){
+        if(pairs[j]==="70"){
+          const factors={1:0.0254,2:0.3048,4:0.001,5:0.01,6:1,7:1000};
+          return factors[Number(pairs[j+1])] ?? 1;
+        }
+        if(pairs[j]==="9" || pairs[j]==="0") break;
+      }
+    }
+  }
+  return 1;
+}
 function fmt(v,d=2){return Number.isFinite(v)?Number(v).toFixed(d):"-"}
 function percentile(a,p){const x=a.filter(Number.isFinite).sort((u,v)=>u-v); if(!x.length)return NaN; const i=(x.length-1)*p, lo=Math.floor(i), hi=Math.ceil(i); return x[lo]+(x[hi]-x[lo])*(i-lo)}
 function mean(a){const x=a.filter(Number.isFinite); return x.length?x.reduce((s,v)=>s+v,0)/x.length:NaN}
@@ -206,10 +226,12 @@ async function importContourFile(file){
     return;
   }
   contourGeo=[];
-  contour=parseDxf(await file.text(),n(document.getElementById("dxfUnit").value));
+  dxfSourceText=await file.text();
+  const dxfScale=resolveDxfScale(dxfSourceText,document.getElementById("dxfUnit").value);
+  contour=parseDxf(dxfSourceText,dxfScale);
   if(!contour.length) throw new Error("Não foi possível encontrar uma poligonal fechada no DXF. Verifique se o arquivo contém LINE, LWPOLYLINE ou POLYLINE.");
   viewBounds=null;
-  document.getElementById("exampleStatus").textContent="Poligonal DXF importada. Ajuste a Zona UTM e o Hemisfério se necessário.";
+  document.getElementById("exampleStatus").textContent=`Poligonal DXF importada. Escala aplicada: ${fmt(dxfScale,4)}. Ajuste a Zona UTM e o Hemisfério se necessário.`;
   renderSpatialStats();
   run(true);
   drawMap();
@@ -399,11 +421,11 @@ function parseDxf(text,scale){
     .map(component=>chainClosedComponent(segments, component))
     .filter(pts=>pts && pts.length >= 3)
     .map(pts=>({pts,stats:polygonStats(pts)}))
-    .filter(p=>p.stats && p.stats.area_m2>5 && p.stats.largura_m>1 && p.stats.altura_m>1);
+    .filter(p=>p.stats && p.stats.area_m2>0.000001 && p.stats.largura_m>0.000001 && p.stats.altura_m>0.000001);
 
   const polylineContours=polylines
     .map(p=>({pts:p.pts,stats:polygonStats(p.pts)}))
-    .filter(p=>p.stats && p.stats.area_m2>5 && p.stats.largura_m>1 && p.stats.altura_m>1);
+    .filter(p=>p.stats && p.stats.area_m2>0.000001 && p.stats.largura_m>0.000001 && p.stats.altura_m>0.000001);
 
   const candidates=[...lineContours, ...polylineContours];
   candidates.sort((a,b)=>b.stats.area_m2-a.stats.area_m2);
@@ -774,7 +796,15 @@ document.getElementById("kValue").addEventListener("input",()=>{
   run(true);
 });
 ["angleValue","peopleFactor","equipmentFactor","targetRadius","referenceMode"].forEach(id=>document.getElementById(id).addEventListener("input",()=>run(true)));
-["dxfUnit"].forEach(id=>document.getElementById(id).addEventListener("input",()=>{viewBounds=null; drawMap();}));
+["dxfUnit"].forEach(id=>document.getElementById(id).addEventListener("input",()=>{
+  if(dxfSourceText){
+    contour=parseDxf(dxfSourceText,resolveDxfScale(dxfSourceText,document.getElementById("dxfUnit").value));
+    if(!contour.length){ document.getElementById("exampleStatus").textContent="A unidade selecionada não gerou uma poligonal válida. Tente Automático ou outra unidade."; return; }
+    document.getElementById("exampleStatus").textContent="Unidade DXF alterada e poligonal reprocessada.";
+    renderSpatialStats();
+  }
+  viewBounds=null; drawMap();
+}));
 document.getElementById("showRadius").addEventListener("input",drawMap);
 document.getElementById("utmZone").addEventListener("input",()=>{viewBounds=null; drawMap();});
 document.getElementById("utmHemisphere").addEventListener("input",()=>{viewBounds=null; drawMap();});
@@ -790,7 +820,8 @@ window.addEventListener("mousemove",e=>{if(!isDragging||!dragStart)return; const
 async function loadExampleAssets(){
   try{
     const dxf=await fetch("./assets/examples/plano-de-perfuracao.dxf").then(r=>r.text());
-    contour=parseDxf(dxf,n(document.getElementById("dxfUnit").value));
+    dxfSourceText=dxf;
+    contour=parseDxf(dxf,resolveDxfScale(dxf,document.getElementById("dxfUnit").value));
     viewBounds=getInitialBounds();
     document.getElementById("exampleStatus").textContent="Exemplo carregado: poligonal de desmonte. Você pode substituir o DXF pelo seu arquivo.";
     renderSpatialStats();
