@@ -71,6 +71,9 @@ def run_pipeline(config: AppConfig, base_dir: str | Path = ".") -> dict:
         k_summary = calibration_summary(analysis_base, config.model.k_calibration_method, None, config.model.prediction_percentile, config.model.gravity)
     k_summary["k_global"] = float(k_global) if pd.notna(k_global) else float("nan")
     modeled = add_terrock_results(modeled, k_series, config.model.gravity)
+    # Keep the calibration/outlier subset, now including the Terrock outputs.
+    # Metrics and simulations consume lmax_previsto_m, which is added above.
+    analysis_base = modeled.loc[analysis_base.index].copy()
     config_snapshot = config.model_dump(mode="json")
     modeled["calculation_trace"] = [
         build_calculation_trace(
