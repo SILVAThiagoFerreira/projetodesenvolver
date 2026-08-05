@@ -448,7 +448,17 @@ function centroid(pts){
 function drawMap(){
   syncContourProjection();
   const canvas=document.getElementById("mapCanvas"), ctx=canvas.getContext("2d");
-  ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle="#F5F5F5"; ctx.fillRect(0,0,canvas.width,canvas.height);
+  // O mapa pode ser redesenhado enquanto os tiles chegam da rede. Um fundo
+  // estável evita o corte branco/glitch entre áreas carregadas e pendentes.
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle="#d8e0dc";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.save();
+  ctx.strokeStyle="rgba(55, 88, 82, .13)";
+  ctx.lineWidth=1;
+  for(let x=0;x<canvas.width;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  for(let y=0;y<canvas.height;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+  ctx.restore();
   const [cx,cy]=centroid(contour), radius=Number.isFinite(currentRadius)?currentRadius:0, pad=42;
   const baseBounds = getInitialBounds();
   if(!viewBounds) viewBounds = baseBounds;
