@@ -189,6 +189,94 @@ td input[type=number] { text-align: right; }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
 
+/* Direção visual: instrumentação de campo, com o amarelo reservado para risco
+   e o mapa tratado como a superfície principal de decisão. */
+:root {
+  --ink: #17333a;
+  --ink-soft: #506a70;
+  --muted: #71868a;
+  --canvas: #e8efed;
+  --surface: #fbfdfc;
+  --surface-alt: #f0f6f4;
+  --border: #cbdcd8;
+  --border-strong: #a9c6be;
+  --yellow: #d99b20;
+  --yellow-soft: #fff5d8;
+  --green: #007f78;
+  --green-deep: #075d60;
+  --shadow: 0 8px 24px rgba(19, 53, 58, .08);
+  --shadow-strong: 0 16px 34px rgba(7, 93, 96, .2);
+}
+
+body {
+  background:
+    linear-gradient(90deg, rgba(0, 127, 120, .035) 1px, transparent 1px) 0 0 / 32px 32px,
+    var(--canvas);
+}
+
+.topbar {
+  color: #eef9f5;
+  background: rgba(15, 55, 59, .96);
+  border-bottom: 3px solid var(--yellow);
+}
+.topbar h1 { color: #f5fbf9; letter-spacing: -.035em; }
+.topbar p:not(.kicker) { color: #b7cfca; }
+.kicker { color: #f1c15a; }
+.brand__logo { filter: brightness(0) invert(1); }
+.badge { border-color: rgba(241, 193, 90, .55); color: #f7d77d; background: rgba(217, 155, 32, .12); }
+
+.workspace { margin-top: 22px; grid-template-columns: 342px minmax(0, 1fr); gap: 24px; }
+.sidebar { top: 88px; }
+.panel { border-color: var(--border); box-shadow: var(--shadow); }
+.sidebar .panel:first-child { border-top: 3px solid var(--green); }
+.panel-title { margin-bottom: 15px; }
+.panel-title span { background: #dceee9; color: var(--green-deep); }
+
+.metrics { gap: 12px; }
+.metric-card { min-height: 126px; padding: 19px; border-color: var(--border); }
+.metric-card--warning { background: linear-gradient(145deg, #fffdf5, var(--yellow-soft)); border-color: #e9cf8c; box-shadow: 0 10px 28px rgba(217, 155, 32, .14); }
+.metric-card--warning::before { height: 6px; background: var(--yellow); }
+.metric-card--warning strong { color: #9c6a05; }
+.metric-card strong { font-size: clamp(27px, 3vw, 36px); }
+.metric-label { letter-spacing: .1em; }
+
+.equation-strip > div { min-height: 82px; }
+.equation-strip > div:nth-child(2) { border-left: 4px solid var(--yellow); }
+.equation-strip strong { font-size: 19px; }
+
+.map-panel { padding: 17px; border-top: 3px solid var(--green-deep); }
+.map-panel .panel-title { margin-bottom: 0; }
+.map-panel .panel-title span { background: var(--green-deep); color: white; }
+#mapCanvas { height: clamp(520px, 63vh, 760px); border: 2px solid #8fb6ac; box-shadow: inset 0 0 0 1px rgba(255,255,255,.65); }
+.map-toolbar { margin-bottom: 10px; }
+.legend { background: var(--surface-alt); }
+
+.mainstage > .panel:not(.map-panel) { border-top: 2px solid #d6e5e1; }
+.mainstage > .panel:nth-of-type(3) { border-top-color: var(--yellow); }
+.table-wrap { border-color: var(--border-strong); }
+thead th { background: #e8f2ef; color: var(--green-deep); }
+tbody tr:hover { background: #eef8f4; }
+.disclaimer { background: #f8fbfa; border-left-color: var(--yellow); }
+
+@media (max-width: 1180px) {
+  .workspace { grid-template-columns: 1fr; }
+  .sidebar { position: static; }
+  #mapCanvas { height: clamp(460px, 58vh, 650px); }
+}
+
+@media (max-width: 860px) {
+  .topbar__inner { padding: 15px 18px; }
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .equation-strip { grid-template-columns: 1fr 1fr; }
+  .equation-strip > div:last-child { grid-column: 1 / -1; }
+}
+
+@media (max-width: 560px) {
+  .metrics, .equation-strip { grid-template-columns: 1fr; }
+  .equation-strip > div:last-child { grid-column: auto; }
+  #mapCanvas { height: 390px; }
+}
+
 /* Linguagem geométrica da ferramenta: painéis e controles retos, sem pílulas. */
 *, *::before, *::after { border-radius: 0 !important; }
 .panel-title span { width: 30px; min-width: 30px; padding: 0; }
