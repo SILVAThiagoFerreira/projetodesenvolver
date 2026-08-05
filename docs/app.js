@@ -122,9 +122,20 @@ function validateAndCompute(h,k,angle){
   return r;
 }
 
+const TABLE_LABELS={
+  litologia:"Litologia", coluna_carregada_m:"Coluna (m)", carga_linear_kg_m:"Carga linear (kg/m)",
+  massa_desmontada_kt:"Massa (kg)", razao_carga_calculada_kg_t:"Razão carga (kg/t)",
+  razao_tampao_profundidade:"Tampão / prof.", lmax_previsto_m:"Lmax (m)",
+  raio_equipamentos_m:"Raio equip. (m)", raio_pessoas_m:"Raio pessoas (m)",
+  validation_status:"Status", validation_errors:"Erros", lmax_atual_m:"Lmax atual (m)",
+  raio_atual_pessoas_m:"Raio atual pessoas (m)", lmax_permitido_m:"Lmax permitido (m)",
+  tampao_necessario_m:"Tampão necessário (m)", aumento_tampao_m:"Aumento tampão (m)",
+  cme_necessaria_kg:"CME necessária (kg)", reducao_cme_pct:"Redução CME (%)", alerta:"Alerta"
+};
+
 function table(rows, keys, limit=100){
   if(!rows.length) return "<p>Sem dados calculados.</p>";
-  return `<div class="table-wrap"><table class="data-table"><thead><tr>${keys.map(k=>`<th>${k}</th>`).join("")}</tr></thead><tbody>${rows.slice(0,limit).map(r=>`<tr>${keys.map(k=>{
+  return `<div class="table-wrap"><table class="data-table"><thead><tr>${keys.map(k=>`<th>${TABLE_LABELS[k]||k}</th>`).join("")}</tr></thead><tbody>${rows.slice(0,limit).map(r=>`<tr>${keys.map(k=>{
     const isNumber = Number.isFinite(r[k]);
     const value = isNumber ? fmt(r[k]) : String(r[k] ?? "");
     return `<td class="${isNumber ? "is-number" : ""}">${value}</td>`;
