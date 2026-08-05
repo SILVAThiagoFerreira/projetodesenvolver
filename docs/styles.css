@@ -18,7 +18,7 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: auto; scroll-padding-top: 92px; }
 body {
   min-height: 100vh;
   color: var(--ink);
@@ -26,6 +26,7 @@ body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-x: none;
 }
 img { max-width: 100%; display: block; }
 h1, h2, h3, p { margin: 0; }
@@ -130,17 +131,17 @@ button:disabled { border-color: var(--border); background: #e8efed; color: #9aac
 .stats strong { display: block; margin-bottom: 4px; color: var(--muted); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
 .stats span { display: block; color: var(--ink); font-size: 13px; font-variant-numeric: tabular-nums; }
 
-.table-wrap { overflow: auto; max-height: 380px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
-table { width: 100%; border-collapse: collapse; background: var(--surface); }
+.table-wrap { overflow: visible; max-height: none; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+table { width: 100%; table-layout: fixed; border-collapse: collapse; background: var(--surface); }
 .data-table { font-size: 12px; }
-th, td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
-thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-alt); color: var(--ink-soft); white-space: nowrap; border-bottom-color: var(--border-strong); }
+th, td { padding: 10px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; overflow-wrap: anywhere; }
+thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-alt); color: var(--ink-soft); white-space: normal; line-height: 1.25; border-bottom-color: var(--border-strong); }
 tbody tr:hover { background: #f7fbfa; }
 tbody tr:last-child td { border-bottom: 0; }
 td.is-number { font-variant-numeric: tabular-nums; text-align: right; }
-td input { min-width: 88px; min-height: 34px; padding: 6px 9px; font-size: 12px; }
-td input.lito { min-width: 100px; }
-td input.id { min-width: 64px; }
+td input { min-width: 0; width: 100%; min-height: 34px; padding: 6px 7px; font-size: 12px; }
+td input.lito { min-width: 0; }
+td input.id { min-width: 0; }
 td input[type=number] { text-align: right; }
 
 .split { display: grid; grid-template-columns: 1fr; gap: 14px; }
@@ -279,4 +280,28 @@ tbody tr:hover { background: #eef8f4; }
 
 /* Linguagem geométrica da ferramenta: painéis e controles retos, sem pílulas. */
 *, *::before, *::after { border-radius: 0 !important; }
-.panel-title span { width: 30px; min-width: 30px; padding: 0; }
+.panel-title span { width: auto; min-width: 30px; padding: 0 8px; flex: 0 0 auto; white-space: nowrap; }
+
+/* As tabelas exibem todos os campos na própria página. Em vez de uma segunda
+   rolagem horizontal, os cabeçalhos e valores quebram de forma controlada. */
+.mainstage > .panel:nth-of-type(2) table { font-size: 11px; }
+.mainstage > .panel:nth-of-type(2) th,
+.mainstage > .panel:nth-of-type(2) td { padding: 8px 5px; }
+.mainstage > .panel:nth-of-type(2) td input { font-size: 11px; }
+#resultsTable .data-table,
+#inverseTable .data-table { font-size: 10px; }
+#resultsTable th, #resultsTable td,
+#inverseTable th, #inverseTable td { padding: 9px 5px; }
+#resultsTable td, #inverseTable td { word-break: normal; }
+
+@media (max-width: 760px) {
+  .mainstage > .panel:nth-of-type(2) table,
+  #resultsTable .data-table,
+  #inverseTable .data-table { font-size: 9px; }
+  .mainstage > .panel:nth-of-type(2) th,
+  .mainstage > .panel:nth-of-type(2) td,
+  #resultsTable th, #resultsTable td,
+  #inverseTable th, #inverseTable td { padding: 7px 3px; }
+  td input { min-height: 31px; padding: 5px 3px; font-size: 10px; }
+  .remove { padding: 5px 3px; font-size: 9px; }
+}
