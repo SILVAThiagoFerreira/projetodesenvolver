@@ -135,7 +135,7 @@ button:disabled { border-color: var(--border); background: #e8efed; color: #9aac
 table { width: 100%; table-layout: fixed; border-collapse: collapse; background: var(--surface); }
 .data-table { font-size: 12px; }
 th, td { padding: 10px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; overflow-wrap: normal; }
-thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-alt); color: var(--ink-soft); white-space: nowrap; line-height: 1.25; border-bottom-color: var(--border-strong); }
+thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-alt); color: var(--ink-soft); white-space: normal; line-height: 1.2; border-bottom-color: var(--border-strong); }
 tbody tr:hover { background: #f7fbfa; }
 tbody tr:last-child td { border-bottom: 0; }
 td.is-number { font-variant-numeric: tabular-nums; text-align: right; }
@@ -297,6 +297,13 @@ tbody tr:hover { background: #eef8f4; }
 #resultsTable th, #inverseTable th { letter-spacing: .04em; }
 #resultsTable th:first-child, #inverseTable th:first-child { width: 9%; }
 #resultsTable td, #inverseTable td { white-space: nowrap; }
+#holesTable thead th { white-space: normal; }
+#holesTable thead th,
+#resultsTable thead th,
+#inverseTable thead th { height: 48px; padding: 10px 7px; text-align: center; vertical-align: middle; }
+#holesTable thead th:first-child,
+#resultsTable thead th:first-child,
+#inverseTable thead th:first-child { text-align: left; }
 
 @media (max-width: 760px) {
   .mainstage > .panel:nth-of-type(2) table,
@@ -306,6 +313,9 @@ tbody tr:hover { background: #eef8f4; }
   .mainstage > .panel:nth-of-type(2) td,
   #resultsTable th, #resultsTable td,
   #inverseTable th, #inverseTable td { padding: 7px 3px; }
+  #holesTable thead th,
+  #resultsTable thead th,
+  #inverseTable thead th { height: 56px; padding: 8px 4px; line-height: 1.15; }
   td input { min-height: 31px; padding: 5px 3px; font-size: 10px; }
   .remove { padding: 5px 3px; font-size: 9px; }
 }
