@@ -193,31 +193,33 @@ td input[type=number] { text-align: right; }
 /* Direção visual: instrumentação de campo, com o amarelo reservado para risco
    e o mapa tratado como a superfície principal de decisão. */
 :root {
-  --ink: #17333a;
-  --ink-soft: #506a70;
-  --muted: #71868a;
-  --canvas: #e8efed;
+  --vale-green: #009B3A;
+  --vale-gray: #4D4D4D;
+  --vale-yellow: #FFCC00;
+  --vale-turquoise: #00A79D;
+  --ink: var(--vale-gray);
+  --ink-soft: #626262;
+  --muted: #747474;
+  --canvas: #f2f5f3;
   --surface: #fbfdfc;
-  --surface-alt: #f0f6f4;
-  --border: #cbdcd8;
-  --border-strong: #a9c6be;
-  --yellow: #d99b20;
-  --yellow-soft: #fff5d8;
-  --green: #007f78;
-  --green-deep: #075d60;
-  --shadow: 0 8px 24px rgba(19, 53, 58, .08);
-  --shadow-strong: 0 16px 34px rgba(7, 93, 96, .2);
+  --surface-alt: #f4f7f5;
+  --border: #d7e1db;
+  --border-strong: #b9cbbf;
+  --yellow: var(--vale-yellow);
+  --yellow-soft: #fff8de;
+  --green: var(--vale-green);
+  --green-deep: #007a2d;
+  --shadow: 0 8px 24px rgba(77, 77, 77, .08);
+  --shadow-strong: 0 16px 34px rgba(0, 122, 45, .16);
 }
 
 body {
-  background:
-    linear-gradient(90deg, rgba(0, 127, 120, .035) 1px, transparent 1px) 0 0 / 32px 32px,
-    var(--canvas);
+  background: var(--canvas);
 }
 
 .topbar {
   color: #eef9f5;
-  background: rgba(15, 55, 59, .96);
+  background: var(--green-deep);
   border-bottom: 3px solid var(--yellow);
 }
 .topbar h1 { color: #f5fbf9; letter-spacing: -.035em; }
@@ -235,13 +237,15 @@ body {
 
 .metrics { gap: 12px; }
 .metric-card { min-height: 126px; padding: 19px; border-color: var(--border); }
-.metric-card--warning { background: linear-gradient(145deg, #fffdf5, var(--yellow-soft)); border-color: #e9cf8c; box-shadow: 0 10px 28px rgba(217, 155, 32, .14); }
-.metric-card--warning::before { height: 6px; background: var(--yellow); }
-.metric-card--warning strong { color: #9c6a05; }
+.metric-card--warning { background: #fffaf0; border-color: #e2cf82; box-shadow: 0 8px 22px rgba(77, 77, 77, .08); }
+.metric-card--warning::before { height: 5px; background: var(--vale-yellow); }
+.metric-card--warning strong { color: var(--vale-gray); }
+.metric-card--equipment::before { background: var(--vale-turquoise); }
 .metric-card strong { font-size: clamp(27px, 3vw, 36px); }
 .metric-label { letter-spacing: .1em; }
 
 .equation-strip > div { min-height: 82px; }
+.equation-strip > div:first-child { background: var(--green-deep); }
 .equation-strip > div:nth-child(2) { border-left: 4px solid var(--yellow); }
 .equation-strip strong { font-size: 19px; }
 
@@ -265,6 +269,10 @@ tbody tr:hover { background: #eef8f4; }
   #mapCanvas { height: clamp(460px, 58vh, 650px); }
 }
 
+@media (max-width: 1024px) {
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 860px) {
   .topbar__inner { padding: 15px 18px; }
   .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -276,6 +284,7 @@ tbody tr:hover { background: #eef8f4; }
   .metrics, .equation-strip { grid-template-columns: 1fr; }
   .equation-strip > div:last-child { grid-column: auto; }
   #mapCanvas { height: 390px; }
+  .metric-card strong { font-size: clamp(24px, 8vw, 32px); }
 }
 
 /* Linguagem geométrica da ferramenta: painéis e controles retos, sem pílulas. */

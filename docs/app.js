@@ -14,13 +14,13 @@ let satelliteLoadAttempted = false;
 let dxfSourceText = "";
 
 const V = {
-  green: "#1A1A1A",
-  yellow: "#555555",
-  gray: "#999999",
-  dark: "#3A3A3A",
-  black: "#262626",
-  border: "#E5E5E5",
-  polyStroke: "#1A1A1A",
+  green: "#009B3A",
+  yellow: "#FFCC00",
+  gray: "#4D4D4D",
+  dark: "#4D4D4D",
+  black: "#4D4D4D",
+  border: "#D7E1DB",
+  polyStroke: "#009B3A",
 };
 
 const fields = [
@@ -488,15 +488,15 @@ function drawMap(){
   if(!contour.length) return;
   if(radius>0 && document.getElementById("showRadius").checked){
     ctx.beginPath(); ctx.arc(px(cx),py(cy),radius*s,0,Math.PI*2);
-    ctx.fillStyle="rgba(26,26,26,.08)"; ctx.fill(); ctx.strokeStyle="#555555"; ctx.lineWidth=2; ctx.setLineDash([8,5]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle="rgba(255,204,0,.12)"; ctx.fill(); ctx.strokeStyle="#FFCC00"; ctx.lineWidth=2; ctx.setLineDash([8,5]); ctx.stroke(); ctx.setLineDash([]);
     const eq=n(document.getElementById("equipmentFactor").value), pe=n(document.getElementById("peopleFactor").value), equipmentRadius=radius*(eq/pe);
     if(Number.isFinite(equipmentRadius)&&equipmentRadius>0){
       ctx.beginPath(); ctx.arc(px(cx),py(cy),equipmentRadius*s,0,Math.PI*2);
-      ctx.fillStyle="rgba(26,26,26,.05)"; ctx.fill(); ctx.strokeStyle="#999999"; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.fillStyle="rgba(0,167,157,.08)"; ctx.fill(); ctx.strokeStyle="#00A79D"; ctx.lineWidth=1.5; ctx.stroke();
     }
   }
   ctx.beginPath(); contour.forEach(([x,y],i)=>{if(i)ctx.lineTo(px(x),py(y)); else ctx.moveTo(px(x),py(y))}); ctx.closePath();
-  ctx.fillStyle="rgba(26,26,26,.12)"; ctx.fill(); ctx.strokeStyle=V.polyStroke; ctx.lineWidth=2; ctx.stroke();
+  ctx.fillStyle="rgba(0,155,58,.12)"; ctx.fill(); ctx.strokeStyle=V.polyStroke; ctx.lineWidth=2; ctx.stroke();
   ctx.beginPath(); ctx.arc(px(cx),py(cy),3,0,Math.PI*2); ctx.fillStyle=V.polyStroke; ctx.fill();
   ctx.fillStyle=V.black; ctx.font="600 11px Inter, Arial"; ctx.fillText(`Raio pessoas: ${fmt(currentRadius)} m`, px(cx)+10, py(cy)-10);
   ctx.font="11px Inter, Arial"; ctx.fillStyle=V.gray; ctx.fillText(`Poligonal do desmonte`, px(cx)+10, py(cy)+8);
