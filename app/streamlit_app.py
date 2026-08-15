@@ -11,6 +11,26 @@ from src.utils.exceptions import ConfigurationError, FlyrockError  # noqa: E402
 from src.pipeline import run_pipeline  # noqa: E402
 
 st.set_page_config(page_title="Flyrock Modeling", layout="wide")
+st.markdown(
+    """
+    <style>
+    :root {
+      --vale-gray: #4D4D4D;
+      --mineral-yellow: #FFCC00;
+      --turquoise: #00A79D;
+      --surface: #F7F7F7;
+      --border: #D9D9D9;
+    }
+    [data-testid="stAppViewContainer"] { background: #FFFFFF; color: var(--vale-gray); }
+    [data-testid="stSidebar"] { background: var(--surface); border-right: 1px solid var(--border); }
+    h1, h2, h3 { color: var(--vale-gray); }
+    h1 { border-top: 6px solid var(--turquoise); border-bottom: 2px solid var(--mineral-yellow); padding: 12px 0 8px; }
+    [data-testid="stMetricValue"] { color: var(--turquoise); }
+    [data-testid="stFileUploaderDropzone"] { border-color: var(--turquoise); }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 st.title("Modelo de Previsão de Flyrock")
 st.caption("Ferramenta local de análise, simulação e relatório. Não substitui responsável técnico habilitado.")
 

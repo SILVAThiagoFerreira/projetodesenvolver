@@ -14,13 +14,11 @@ let satelliteLoadAttempted = false;
 let dxfSourceText = "";
 
 const V = {
-  green: "#009B3A",
+  turquoise: "#00A79D",
   yellow: "#FFCC00",
   gray: "#4D4D4D",
-  dark: "#4D4D4D",
-  black: "#4D4D4D",
-  border: "#D7E1DB",
-  polyStroke: "#009B3A",
+  border: "#D9DDDD",
+  polyStroke: "#00A79D",
 };
 
 const fields = [
@@ -462,10 +460,10 @@ function drawMap(){
   // O mapa pode ser redesenhado enquanto os tiles chegam da rede. Um fundo
   // estável evita o corte branco/glitch entre áreas carregadas e pendentes.
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle="#d8e0dc";
+  ctx.fillStyle="#F2F4F4";
   ctx.fillRect(0,0,canvas.width,canvas.height);
   ctx.save();
-  ctx.strokeStyle="rgba(55, 88, 82, .13)";
+  ctx.strokeStyle="rgba(77, 77, 77, .13)";
   ctx.lineWidth=1;
   for(let x=0;x<canvas.width;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
   for(let y=0;y<canvas.height;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
@@ -496,9 +494,9 @@ function drawMap(){
     }
   }
   ctx.beginPath(); contour.forEach(([x,y],i)=>{if(i)ctx.lineTo(px(x),py(y)); else ctx.moveTo(px(x),py(y))}); ctx.closePath();
-  ctx.fillStyle="rgba(0,155,58,.12)"; ctx.fill(); ctx.strokeStyle=V.polyStroke; ctx.lineWidth=2; ctx.stroke();
+  ctx.fillStyle="rgba(0,167,157,.12)"; ctx.fill(); ctx.strokeStyle=V.polyStroke; ctx.lineWidth=2; ctx.stroke();
   ctx.beginPath(); ctx.arc(px(cx),py(cy),3,0,Math.PI*2); ctx.fillStyle=V.polyStroke; ctx.fill();
-  ctx.fillStyle=V.black; ctx.font="600 11px Inter, Arial"; ctx.fillText(`Raio pessoas: ${fmt(currentRadius)} m`, px(cx)+10, py(cy)-10);
+  ctx.fillStyle=V.gray; ctx.font="600 11px Inter, Arial"; ctx.fillText(`Raio pessoas: ${fmt(currentRadius)} m`, px(cx)+10, py(cy)-10);
   ctx.font="11px Inter, Arial"; ctx.fillStyle=V.gray; ctx.fillText(`Poligonal do desmonte`, px(cx)+10, py(cy)+8);
   drawMap.lastTransform={px,py,wx,wy,s,pad};
 }
@@ -646,7 +644,7 @@ function run(silent=false){
   drawMap();
   charts.forEach(c=>c.destroy());
   charts=[
-    new Chart(document.getElementById("lmaxChart"),{type:"bar",data:{labels:valid.map((r,i)=>r.litologia || `Condição ${i+1}`),datasets:[{label:"Lmax previsto (m)",data:lmax,backgroundColor:"#1A1A1A",borderColor:"#1A1A1A",borderRadius:0,borderSkipped:false,maxBarThickness:48}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:4,right:8,bottom:0,left:8}},plugins:{legend:{display:false},title:{display:true,text:"Lmax previsto por condição",color:"#3A3A3A",font:{family:"Inter, Arial",size:13,weight:"600"},padding:{bottom:12}},tooltip:{backgroundColor:"#1A1A1A",titleColor:"#fff",bodyColor:"#fff",padding:10,borderRadius:0,displayColors:false}},scales:{x:{grid:{display:false},ticks:{color:"#555555",font:{family:"Inter, Arial",size:11,weight:"500"},maxRotation:0,autoSkip:false}},y:{beginAtZero:true,grid:{color:"#E5E5E5",drawBorder:false},ticks:{color:"#555555",font:{family:"Inter, Arial",size:11}},title:{display:true,text:"m",color:"#999999",font:{family:"Inter, Arial",size:11,weight:"600"}}}}}}),
+    new Chart(document.getElementById("lmaxChart"),{type:"bar",data:{labels:valid.map((r,i)=>r.litologia || `Condição ${i+1}`),datasets:[{label:"Lmax previsto (m)",data:lmax,backgroundColor:V.turquoise,borderColor:V.turquoise,borderRadius:0,borderSkipped:false,maxBarThickness:48}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:4,right:8,bottom:0,left:8}},plugins:{legend:{display:false},title:{display:true,text:"Lmax previsto por condição",color:V.gray,font:{family:"Inter, Arial",size:13,weight:"600"},padding:{bottom:12}},tooltip:{backgroundColor:V.gray,titleColor:"#fff",bodyColor:"#fff",padding:10,borderRadius:0,displayColors:false}},scales:{x:{grid:{display:false},ticks:{color:V.gray,font:{family:"Inter, Arial",size:11,weight:"500"},maxRotation:0,autoSkip:false}},y:{beginAtZero:true,grid:{color:"#D9DDDD",drawBorder:false},ticks:{color:V.gray,font:{family:"Inter, Arial",size:11}},title:{display:true,text:"m",color:"#747474",font:{family:"Inter, Arial",size:11,weight:"600"}}}}}}),
   ];
   reportHtml=`<!doctype html>
 <html lang="pt-BR">
@@ -656,27 +654,27 @@ function run(silent=false){
   <title>Relatório Terrock Flyrock</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    :root{--gray-50:#F5F5F5;--gray-100:#EEEEEE;--gray-200:#E0E0E0;--gray-300:#CCCCCC;--gray-400:#999999;--gray-500:#777777;--gray-600:#555555;--gray-700:#3A3A3A;--gray-800:#262626;--gray-900:#1A1A1A;--white:#FFFFFF;--border:#E5E5E5}
+    :root{--vale-gray:#4D4D4D;--vale-yellow:#FFCC00;--vale-turquoise:#00A79D;--gray-50:#F2F4F4;--gray-100:#EEF1F1;--gray-200:#D9DDDD;--gray-400:#747474;--gray-500:#626262;--gray-700:#4D4D4D;--gray-900:#4D4D4D;--white:#FFFFFF;--border:#D9DDDD}
     *{box-sizing:border-box}
     body{margin:0;padding:24px;background:var(--gray-50);color:var(--gray-700);font-family:'Inter',Arial,sans-serif;line-height:1.5}
     .shell{max-width:1080px;margin:0 auto;background:var(--white);border:1px solid var(--border);overflow:hidden}
-    .hero{padding:20px 24px;background:var(--gray-900);color:var(--white)}
+    .hero{padding:20px 24px;background:var(--vale-gray);color:var(--white);border-bottom:3px solid var(--vale-yellow)}
     .hero h1{margin:0 0 6px;font-size:20px;font-weight:700;letter-spacing:-0.02em}
     .hero p{margin:0;color:var(--gray-400);font-size:12px}
     .section{padding:20px 24px}
     .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
     .card{padding:14px;background:var(--white)}
     .card span{display:block;color:var(--gray-400);font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase}
-    .card strong{display:block;margin-top:4px;color:var(--gray-900);font-size:22px;line-height:1.05;font-weight:700}
+    .card strong{display:block;margin-top:4px;color:var(--vale-turquoise);font-size:22px;line-height:1.05;font-weight:700}
     h2{margin:0 0 12px;font-size:15px;font-weight:700;color:var(--gray-900)}
     .table-wrap{overflow:auto;border:1px solid var(--border);background:var(--white)}
     table{width:100%;border-collapse:collapse;background:var(--white)}
     th,td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:12px;text-align:left;vertical-align:middle}
-    thead th{position:sticky;top:0;background:var(--gray-50);color:var(--gray-600);font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;border-bottom:1px solid var(--gray-200)}
+    thead th{position:sticky;top:0;background:#EEF7F6;color:var(--vale-gray);font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;border-bottom:1px solid var(--gray-200)}
     tbody tr:hover{background:var(--gray-50)}
     tbody tr:last-child td{border-bottom:0}
     td.is-number{font-variant-numeric:tabular-nums;text-align:right}
-    .notice{margin:0 24px 24px;padding:12px 16px;background:var(--gray-50);border:1px solid var(--border);border-left:3px solid var(--gray-400);color:var(--gray-500);font-size:11px}
+    .notice{margin:0 24px 24px;padding:12px 16px;background:var(--gray-50);border:1px solid var(--border);border-left:3px solid var(--vale-yellow);color:var(--gray-500);font-size:11px}
     @media (max-width:900px){.cards{grid-template-columns:1fr 1fr}.section,.hero{padding-left:16px;padding-right:16px}}
     @media (max-width:620px){body{padding:12px}.cards{grid-template-columns:1fr}.hero h1{font-size:18px}}
   </style>
@@ -739,9 +737,9 @@ function buildKml(){
   const poly=contourLonLat();
   return `<?xml version="1.0" encoding="UTF-8"?>
  <kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Zona de Segurança Flyrock</name>
-<Style id="poly"><LineStyle><color>ff463c00</color><width>3</width></LineStyle><PolyStyle><color>33463c00</color></PolyStyle></Style>
-<Style id="people"><LineStyle><color>ff1fb1ec</color><width>3</width></LineStyle><PolyStyle><color>241fb1ec</color></PolyStyle></Style>
-<Style id="equip"><LineStyle><color>ff7a7e00</color><width>2</width></LineStyle><PolyStyle><color>257a7e00</color></PolyStyle></Style>
+<Style id="poly"><LineStyle><color>ff9da700</color><width>3</width></LineStyle><PolyStyle><color>339da700</color></PolyStyle></Style>
+<Style id="people"><LineStyle><color>ff00ccff</color><width>3</width></LineStyle><PolyStyle><color>3300ccff</color></PolyStyle></Style>
+<Style id="equip"><LineStyle><color>ff4d4d4d</color><width>2</width></LineStyle><PolyStyle><color>334d4d4d</color></PolyStyle></Style>
 <Placemark><name>Poligonal do desmonte</name><styleUrl>#poly</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>${kmlCoords(poly.concat(poly[0] ? [poly[0]] : []))}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
 <Placemark><name>Raio pessoas ${fmt(currentRadius)} m</name><styleUrl>#people</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>${kmlCoords(people)}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
 <Placemark><name>Raio equipamentos</name><styleUrl>#equip</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>${kmlCoords(equipment)}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>

@@ -7,7 +7,25 @@ HTML_TEMPLATE = """
 <!doctype html>
 <html lang="pt-BR">
 <head><meta charset="utf-8"><title>Relatorio Flyrock</title>
-<style>body{font-family:Arial,sans-serif;margin:36px;color:#1f2933} h1,h2{color:#003c46} table{border-collapse:collapse;width:100%;margin:12px 0} td,th{border:1px solid #d8dee4;padding:6px;font-size:12px} .warn{background:#fff7d6;padding:12px;border-left:4px solid #d99a00}</style></head>
+<style>
+:root {
+  --vale-gray: #4D4D4D;
+  --mineral-yellow: #FFCC00;
+  --turquoise: #00A79D;
+  --surface: #F7F7F7;
+  --border: #D9D9D9;
+}
+* { box-sizing: border-box; }
+body { font-family: Arial, sans-serif; margin: 36px; color: var(--vale-gray); background: #FFFFFF; line-height: 1.45; }
+h1 { color: var(--vale-gray); border-top: 6px solid var(--turquoise); border-bottom: 2px solid var(--mineral-yellow); padding: 14px 0 10px; }
+h2 { color: var(--vale-gray); border-left: 6px solid var(--mineral-yellow); padding-left: 10px; margin-top: 28px; }
+h3 { color: var(--turquoise); }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+td, th { border: 1px solid var(--border); padding: 6px; font-size: 12px; }
+th { background: var(--vale-gray); color: #FFFFFF; text-align: left; }
+tr:nth-child(even) { background: var(--surface); }
+.warn { background: #FFF8CC; padding: 12px; border-left: 4px solid var(--mineral-yellow); }
+</style></head>
 <body>
 {% macro render_rows(rows) -%}
 {% if rows %}
