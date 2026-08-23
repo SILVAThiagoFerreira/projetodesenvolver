@@ -14,11 +14,11 @@ let satelliteLoadAttempted = false;
 let dxfSourceText = "";
 
 const V = {
-  turquoise: "#00A79D",
-  yellow: "#FFCC00",
-  gray: "#4D4D4D",
+  turquoise: "#00807C",
+  yellow: "#EEA722",
+  gray: "#77787B",
   border: "#D9DDDD",
-  polyStroke: "#00A79D",
+  polyStroke: "#00807C",
 };
 
 const fields = [
@@ -486,11 +486,11 @@ function drawMap(){
   if(!contour.length) return;
   if(radius>0 && document.getElementById("showRadius").checked){
     ctx.beginPath(); ctx.arc(px(cx),py(cy),radius*s,0,Math.PI*2);
-    ctx.fillStyle="rgba(255,204,0,.12)"; ctx.fill(); ctx.strokeStyle="#FFCC00"; ctx.lineWidth=2; ctx.setLineDash([8,5]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle="rgba(238,167,34,.12)"; ctx.fill(); ctx.strokeStyle="#EEA722"; ctx.lineWidth=2; ctx.setLineDash([8,5]); ctx.stroke(); ctx.setLineDash([]);
     const eq=n(document.getElementById("equipmentFactor").value), pe=n(document.getElementById("peopleFactor").value), equipmentRadius=radius*(eq/pe);
     if(Number.isFinite(equipmentRadius)&&equipmentRadius>0){
       ctx.beginPath(); ctx.arc(px(cx),py(cy),equipmentRadius*s,0,Math.PI*2);
-      ctx.fillStyle="rgba(0,167,157,.08)"; ctx.fill(); ctx.strokeStyle="#00A79D"; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.fillStyle="rgba(0,128,124,.08)"; ctx.fill(); ctx.strokeStyle="#00807C"; ctx.lineWidth=1.5; ctx.stroke();
     }
   }
   ctx.beginPath(); contour.forEach(([x,y],i)=>{if(i)ctx.lineTo(px(x),py(y)); else ctx.moveTo(px(x),py(y))}); ctx.closePath();

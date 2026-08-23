@@ -39,8 +39,8 @@ button, input, select { font: inherit; }
 .topbar {
   position: sticky; top: 0; z-index: 100;
   color: #FFFFFF;
-  /* Faixa superior conforme o tom solicitado para a interface. */
-  background: #00A79D;
+  /* Faixa superior no teal Vale da paleta de referência. */
+  background: var(--vale-turquoise);
   border-bottom: 3px solid var(--vale-yellow);
   box-shadow: 0 5px 20px rgba(0, 88, 83, .22);
 }
