@@ -627,6 +627,11 @@ function run(silent=false){
   const k=n(document.getElementById("kValue").value), angle=n(document.getElementById("angleValue").value), people=n(document.getElementById("peopleFactor").value), equipment=n(document.getElementById("equipmentFactor").value);
   results=holes.map(h=>validateAndCompute(h,k,angle));
   const valid=results.filter(r=>r.validation_status==="valid");
+  const status=document.getElementById("calculationStatus");
+  if(status){
+    status.textContent=valid.length ? `${valid.length} furo(s) válido(s) · pronto para exportar` : "Revise os parâmetros antes de exportar";
+    status.className=`results-intro__status${valid.length ? " results-intro__status--ok" : " results-intro__status--warning"}`;
+  }
   const lmax=valid.map(r=>r.lmax_previsto_m);
   const mode=document.getElementById("referenceMode").value;
   const ref=lmax.length ? (mode==="median"?percentile(lmax,.5):mode==="p95"?percentile(lmax,.95):mode==="p90"?percentile(lmax,.90):mode==="mean"?mean(lmax):Math.max(...lmax)) : NaN;
@@ -737,9 +742,9 @@ function buildKml(){
   const poly=contourLonLat();
   return `<?xml version="1.0" encoding="UTF-8"?>
  <kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Zona de Segurança Flyrock</name>
-<Style id="poly"><LineStyle><color>ff9da700</color><width>3</width></LineStyle><PolyStyle><color>339da700</color></PolyStyle></Style>
-<Style id="people"><LineStyle><color>ff00ccff</color><width>3</width></LineStyle><PolyStyle><color>3300ccff</color></PolyStyle></Style>
-<Style id="equip"><LineStyle><color>ff4d4d4d</color><width>2</width></LineStyle><PolyStyle><color>334d4d4d</color></PolyStyle></Style>
+<Style id="poly"><LineStyle><color>ff9a9300</color><width>3</width></LineStyle><PolyStyle><color>339a9300</color></PolyStyle></Style>
+<Style id="people"><LineStyle><color>ff33b8ec</color><width>3</width></LineStyle><PolyStyle><color>3333b8ec</color></PolyStyle></Style>
+<Style id="equip"><LineStyle><color>ff7b7877</color><width>2</width></LineStyle><PolyStyle><color>337b7877</color></PolyStyle></Style>
 <Placemark><name>Poligonal do desmonte</name><styleUrl>#poly</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>${kmlCoords(poly.concat(poly[0] ? [poly[0]] : []))}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
 <Placemark><name>Raio pessoas ${fmt(currentRadius)} m</name><styleUrl>#people</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>${kmlCoords(people)}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
 <Placemark><name>Raio equipamentos</name><styleUrl>#equip</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>${kmlCoords(equipment)}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
@@ -847,6 +852,8 @@ async function loadExampleAssets(){
     run(true);
   }catch(err){
     document.getElementById("exampleStatus").textContent="Não foi possível carregar o exemplo automaticamente. Use o campo de DXF para importar a poligonal.";
+    const status=document.getElementById("calculationStatus");
+    if(status) status.textContent="Aguardando um contorno válido";
   }
 }
 

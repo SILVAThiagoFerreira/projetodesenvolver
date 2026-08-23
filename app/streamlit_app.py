@@ -15,9 +15,9 @@ st.markdown(
     """
     <style>
     :root {
-      --vale-gray: #4D4D4D;
-      --mineral-yellow: #FFCC00;
-      --turquoise: #00A79D;
+      --vale-gray: #77787B;
+      --mineral-yellow: #ECB833;
+      --turquoise: #00939A;
       --surface: #F7F7F7;
       --border: #D9D9D9;
     }

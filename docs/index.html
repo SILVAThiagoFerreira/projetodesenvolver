@@ -15,6 +15,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Pular para o conteúdo principal</a>
   <header class="topbar">
     <div class="topbar__inner">
       <div class="brand">
@@ -29,7 +30,7 @@
     </div>
   </header>
 
-  <main class="workspace">
+  <main id="main-content" class="workspace">
     <aside class="sidebar">
       <section class="panel">
         <div class="panel-title">
@@ -90,7 +91,7 @@
         <div class="file-stack">
           <label>Contorno DXF/KMZ<input id="dxfFile" type="file" accept=".dxf,.kml,.kmz"></label>
         </div>
-        <p class="lead tight" id="exampleStatus">Carregando exemplo: poligonal de desmonte.</p>
+        <p class="lead tight" id="exampleStatus" role="status" aria-live="polite">Carregando exemplo: poligonal de desmonte.</p>
       </section>
 
       <section class="panel">
@@ -108,7 +109,15 @@
     </aside>
 
     <section class="mainstage">
-      <div class="metrics">
+      <section class="results-intro" aria-labelledby="results-intro-title">
+        <div>
+          <span class="eyebrow">Resumo operacional</span>
+          <h2 id="results-intro-title">Zona de segurança calculada</h2>
+          <p>Confira primeiro o raio para pessoas e equipamentos. Os detalhes do modelo ficam disponíveis logo abaixo.</p>
+        </div>
+        <div class="results-intro__status" id="calculationStatus" role="status" aria-live="polite">Exemplo da base carregado</div>
+      </section>
+      <div class="metrics" aria-label="Resumo dos resultados">
         <article class="metric-card metric-card--neutral">
           <span class="metric-label">Furos válidos</span>
           <strong id="holeCount">0</strong>
@@ -159,7 +168,8 @@
             <label class="toggle"><input id="showRadius" type="checkbox" checked> Raios</label>
           </div>
         </div>
-        <canvas id="mapCanvas" width="1280" height="680"></canvas>
+        <p class="panel-helper">Arraste para explorar. Use o zoom para conferir a relação entre a poligonal e os raios operacionais.</p>
+        <canvas id="mapCanvas" width="1280" height="680" aria-label="Mapa da poligonal e das zonas de segurança"></canvas>
         <div class="legend">
           <span><i class="poly"></i> Poligonal</span>
           <span><i class="people"></i> Pessoas</span>
