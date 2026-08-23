@@ -1,14 +1,15 @@
 :root {
-  --vale-gray: #4D4D4D;
-  --vale-yellow: #FFCC00;
-  --vale-turquoise: #00A79D;
+  /* Paleta Vale observada nos materiais de referência fornecidos. */
+  --vale-gray: #77787B;
+  --vale-yellow: #EEA722;
+  --vale-turquoise: #00807C;
   --ink: var(--vale-gray);
-  --ink-soft: #626262;
-  --muted: #747474;
+  --ink-soft: #626366;
+  --muted: #77787B;
   --accent: var(--vale-turquoise);
   --accent-deep: #007A73;
-  --accent-soft: #E4F5F3;
-  --yellow-soft: #FFF8D6;
+  --accent-soft: #E4F3F2;
+  --yellow-soft: #FFF6DD;
   --surface: #FFFFFF;
   --surface-alt: #F7F8F8;
   --canvas: #F2F4F4;
