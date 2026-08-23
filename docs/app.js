@@ -14,11 +14,11 @@ let satelliteLoadAttempted = false;
 let dxfSourceText = "";
 
 const V = {
-  turquoise: "#00807C",
-  yellow: "#EEA722",
+  turquoise: "#00939A",
+  yellow: "#ECB833",
   gray: "#77787B",
   border: "#D9DDDD",
-  polyStroke: "#00807C",
+  polyStroke: "#00939A",
 };
 
 const fields = [
@@ -486,11 +486,11 @@ function drawMap(){
   if(!contour.length) return;
   if(radius>0 && document.getElementById("showRadius").checked){
     ctx.beginPath(); ctx.arc(px(cx),py(cy),radius*s,0,Math.PI*2);
-    ctx.fillStyle="rgba(238,167,34,.12)"; ctx.fill(); ctx.strokeStyle="#EEA722"; ctx.lineWidth=2; ctx.setLineDash([8,5]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle="rgba(236,184,51,.16)"; ctx.fill(); ctx.strokeStyle="#ECB833"; ctx.lineWidth=2; ctx.setLineDash([8,5]); ctx.stroke(); ctx.setLineDash([]);
     const eq=n(document.getElementById("equipmentFactor").value), pe=n(document.getElementById("peopleFactor").value), equipmentRadius=radius*(eq/pe);
     if(Number.isFinite(equipmentRadius)&&equipmentRadius>0){
       ctx.beginPath(); ctx.arc(px(cx),py(cy),equipmentRadius*s,0,Math.PI*2);
-      ctx.fillStyle="rgba(0,128,124,.08)"; ctx.fill(); ctx.strokeStyle="#00807C"; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.fillStyle="rgba(0,147,154,.10)"; ctx.fill(); ctx.strokeStyle="#00939A"; ctx.lineWidth=1.5; ctx.stroke();
     }
   }
   ctx.beginPath(); contour.forEach(([x,y],i)=>{if(i)ctx.lineTo(px(x),py(y)); else ctx.moveTo(px(x),py(y))}); ctx.closePath();
@@ -654,7 +654,7 @@ function run(silent=false){
   <title>Relatório Terrock Flyrock</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    :root{--vale-gray:#4D4D4D;--vale-yellow:#FFCC00;--vale-turquoise:#00A79D;--gray-50:#F2F4F4;--gray-100:#EEF1F1;--gray-200:#D9DDDD;--gray-400:#747474;--gray-500:#626262;--gray-700:#4D4D4D;--gray-900:#4D4D4D;--white:#FFFFFF;--border:#D9DDDD}
+    :root{--vale-gray:#77787B;--vale-yellow:#ECB833;--vale-turquoise:#00939A;--gray-50:#F2F4F4;--gray-100:#EEF1F1;--gray-200:#D9DDDD;--gray-400:#747474;--gray-500:#626366;--gray-700:#77787B;--gray-900:#77787B;--white:#FFFFFF;--border:#D9DDDD}
     *{box-sizing:border-box}
     body{margin:0;padding:24px;background:var(--gray-50);color:var(--gray-700);font-family:'Inter',Arial,sans-serif;line-height:1.5}
     .shell{max-width:1080px;margin:0 auto;background:var(--white);border:1px solid var(--border);overflow:hidden}
