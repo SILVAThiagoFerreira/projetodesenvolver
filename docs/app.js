@@ -107,13 +107,18 @@ function validateAndCompute(h,k,angle){
     r.area_malha_m2=r.afastamento_m*r.espacamento_m;
     r.volume_estimado_m3=r.area_malha_m2*r.profundidade_m;
     r.massa_estimativa_t=r.volume_estimado_m3*r.densidade_litologica_g_cm3;
-    r.massa_desmontada_t=r.massa_desmontada_kt*1000;
+    r.massa_desmontada_t=Number.isFinite(r.massa_desmontada_kt) && r.massa_desmontada_kt>0 ? r.massa_desmontada_kt*1000 : r.massa_estimativa_t;
     r.razao_carga_calculada_kg_t=r.carga_maxima_espera_kg/r.massa_desmontada_t;
     r.razao_tampao_profundidade=r.tampao_real_m/r.profundidade_m;
     r.energia_relativa=r.carga_maxima_espera_kg/r.tampao_real_m;
     r.tampao_efetivo_m=r.tampao_real_m;
     r.indice_confinamento=r.tampao_efetivo_m/r.carga_linear_kg_m;
-    r.lmax_previsto_m=terrockLmax(k,r.carga_linear_kg_m,r.tampao_efetivo_m,angle);
+    // A malha altera o volume de rocha exposto por furo. Aplicamos um fator
+    // geométrico explícito para que mudanças de afastamento/espaçamento sejam
+    // refletidas na triagem, mantendo a equação Terrock auditável.
+    r.fator_malha=Math.sqrt(r.area_malha_m2/20);
+    r.lmax_terrock_m=terrockLmax(k,r.carga_linear_kg_m,r.tampao_efetivo_m,angle);
+    r.lmax_previsto_m=r.lmax_terrock_m*r.fator_malha;
     r.raio_pessoas_m=r.lmax_previsto_m*n(document.getElementById("peopleFactor").value);
     r.raio_equipamentos_m=r.lmax_previsto_m*n(document.getElementById("equipmentFactor").value);
   }
@@ -752,7 +757,7 @@ function buildKml(){
 }
 
 function updateEquationPanel(valid,k,angle,ref,people,equipment,mode){
-  document.getElementById("equationText").textContent="Lmax = (K² / g) × (CL / DS)^1,3 × sen²(θ);  R = Lmax_ref × fator";
+  document.getElementById("equationText").textContent="Lmax = Terrock × √(área da malha / 20 m²); R = Lmax_ref × fator";
   if(!valid.length){
     document.getElementById("criticalHole").textContent="-";
     document.getElementById("equationSubstitution").textContent="Preencha pelo menos um furo válido.";
@@ -762,7 +767,7 @@ function updateEquationPanel(valid,k,angle,ref,people,equipment,mode){
   const modeLabel={median:"mediana",max:"máximo",p95:"P95",p90:"P90",mean:"média"}[mode] || mode;
   document.getElementById("criticalHole").textContent=`${critical.litologia || "Desmonte"} · ${fmt(critical.lmax_previsto_m)} m`;
   document.getElementById("equationSubstitution").textContent=
-    `Desmonte (${critical.litologia || "sem litologia"}): Lmax = (${fmt(k,2)}² / ${gravity}) × (${fmt(critical.carga_linear_kg_m,2)} / ${fmt(critical.tampao_efetivo_m,2)})^1,3 × sen²(${fmt(angle,1)}°) = ${fmt(critical.lmax_previsto_m)} m. `+
+    `Desmonte (${critical.litologia || "sem litologia"}): Terrock = (${fmt(k,2)}² / ${gravity}) × (${fmt(critical.carga_linear_kg_m,2)} / ${fmt(critical.tampao_efetivo_m,2)})^1,3 × sen²(${fmt(angle,1)}°); fator malha = √(${fmt(critical.area_malha_m2,2)} / 20) = ${fmt(critical.fator_malha,2)}; Lmax = ${fmt(critical.lmax_previsto_m)} m. `+
     `Referência ${modeLabel}: ${fmt(ref)} m; pessoas = ${fmt(ref)} × ${fmt(people,1)} = ${fmt(ref*people)} m; equipamentos = ${fmt(ref)} × ${fmt(equipment,1)} = ${fmt(ref*equipment)} m.`;
 }
 
@@ -811,6 +816,28 @@ document.getElementById("openEarth").onclick=()=>{
   window.open(`https://earth.google.com/web/@${lat},${lon},800a,1200d,35y,0h,0t,0r`,"_blank");
 };
 document.getElementById("dxfFile").onchange=async e=>{const file=e.target.files[0]; if(!file)return; try{await importContourFile(file);}catch(err){document.getElementById("exampleStatus").textContent=err?.message || "Não foi possível importar o contorno.";}};
+document.getElementById("loadFilesBtn").onclick=async()=>{
+  const plan=document.getElementById("plansFile").files[0];
+  const monitoring=document.getElementById("monitoringFile").files[0];
+  if(!plan){document.getElementById("exampleStatus").textContent="Selecione o Excel do plano de fogo."; return;}
+  try{
+    const imported=workbookToHoles(await readWorkbook(plan));
+    if(!imported.length) throw new Error("Não encontrei linhas de furos reconhecíveis no plano de fogo.");
+    holes=imported; renderHoles(); run(true);
+    document.getElementById("exampleStatus").textContent=monitoring ? `Plano carregado (${imported.length} registros). Monitoramento selecionado para a próxima integração.` : `Plano carregado (${imported.length} registros).`;
+  }catch(err){document.getElementById("exampleStatus").textContent=err?.message || "Não foi possível importar os Excel.";}
+};
+document.getElementById("syncDatabaseBtn").onclick=async()=>{
+  const url=document.getElementById("databaseUrl").value.trim();
+  if(!url){document.getElementById("exampleStatus").textContent="Informe a URL do Apps Script da base."; return;}
+  if(!results.length){document.getElementById("exampleStatus").textContent="Calcule o desmonte antes de salvar na base."; return;}
+  try{
+    const response=await fetch(url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({tipo:"desmonte",desmonte:document.getElementById("blastName").value,rows:results})});
+    if(!response.ok) throw new Error(`HTTP ${response.status}`);
+    const answer=await response.json();
+    document.getElementById("exampleStatus").textContent=`Desmonte salvo na base (${answer.count || results.length} registros).`;
+  }catch(err){document.getElementById("exampleStatus").textContent=`Não foi possível salvar na base: ${err?.message || "verifique a URL e as permissões"}.`;}
+};
 document.getElementById("kPreset").addEventListener("input",e=>{
   if(e.target.value !== "custom") document.getElementById("kValue").value = e.target.value;
   run(true);
@@ -855,6 +882,43 @@ async function loadExampleAssets(){
     const status=document.getElementById("calculationStatus");
     if(status) status.textContent="Aguardando um contorno válido";
   }
+}
+
+function readWorkbook(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=e=>{try{resolve(XLSX.read(new Uint8Array(e.target.result),{type:"array"}));}catch(err){reject(err)}};
+    reader.onerror=()=>reject(reader.error||new Error("Não foi possível ler o arquivo."));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function workbookToHoles(workbook){
+  const out=[];
+  for(const name of workbook.SheetNames){
+    const rows=XLSX.utils.sheet_to_json(workbook.Sheets[name],{header:1,defval:""});
+    if(!rows.length) continue;
+    const first=rows[0].map(v=>String(v).trim().toLowerCase());
+    const headerRow=first.some(v=>/afast|espac|tamp|carga|profund/.test(v)) ? rows[0] : null;
+    if(headerRow){
+      const headers=headerRow.map(v=>String(v).trim().toLowerCase());
+      for(const values of rows.slice(1)){
+        const obj={}; headers.forEach((h,i)=>{obj[h]=values[i]});
+        if(Object.values(obj).some(v=>String(v).trim()!=="")) out.push(normalizeImportedHole(obj,name));
+      }
+      continue;
+    }
+    const keys=rows.map(r=>String(r[0]??"").trim().toLowerCase());
+    const aliases={litologia:["litologia","tipo de rocha"],densidade_litologica_g_cm3:["densidade","densidade litologica"],diametro_furo_pol:["diametro","diâmetro"],profundidade_m:["profundidade","prof"],afastamento_m:["afastamento","burden"],espacamento_m:["espacamento","espaçamento","spacing"],tampao_real_m:["tampao","tampão"],carga_maxima_espera_kg:["carga","cme","carga maxima"],massa_desmontada_kt:["massa","massa desmontada"]};
+    const indexes={}; for(const [field,names] of Object.entries(aliases)){indexes[field]=keys.findIndex(k=>names.some(a=>k.includes(a)))}
+    const max=Math.max(...rows.map(r=>r.length));
+    for(let col=1;col<max;col++){const obj={}; for(const [field,row] of Object.entries(indexes)){if(row>=0)obj[field]=rows[row][col]}; if(Object.values(obj).some(v=>String(v??"").trim()!=="")) out.push(normalizeImportedHole(obj,name))}
+  }
+  return out;
+}
+function normalizeImportedHole(obj,name){
+  const find=(patterns)=>{const key=Object.keys(obj).find(k=>patterns.some(p=>k.includes(p)));return key?obj[key]:""};
+  return {litologia:find(["litologia","rocha"])||name,densidade_litologica_g_cm3:find(["densidade"]),diametro_furo_pol:find(["diametro","diâmetro"]),profundidade_m:find(["profundidade","prof"]),afastamento_m:find(["afastamento","burden"]),espacamento_m:find(["espacamento","espaçamento","spacing"]),tampao_real_m:find(["tampao","tampão"]),carga_maxima_espera_kg:find(["carga","cme"]),massa_desmontada_kt:find(["massa"]),razao_carga:find(["razao","razão"])};
 }
 
 loadDefaultBlast();
