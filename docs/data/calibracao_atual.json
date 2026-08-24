@@ -1,0 +1,22 @@
+{
+  "fonte": "data/raw/Apendice_I_Planos_de_fogo.xlsx + data/raw/Apendice_II_Banco_de_dados_monitoramento.xlsx",
+  "processado_em": "2026-08-24",
+  "registros_monitoramento": 73,
+  "furos_plano": 72,
+  "match_percentual": 98.63013698630137,
+  "eventos_sem_correspondencia": 1,
+  "furos_duplicados": 16,
+  "k_global": 10.113691593592616,
+  "k_por_litologia": {
+    "CE": 9.960142036046065,
+    "HC": 10.17606778540651,
+    "HF": 10.492915952222999
+  },
+  "metricas": {
+    "r2": -0.9797746026872935,
+    "mae_m": 39.96348334095028,
+    "rmse_m": 50.52220128175259,
+    "mape_percentual": 65.87094513489728
+  },
+  "observacao": "Calibração preserva outliers sinalizados e requer revisão técnica antes de uso operacional."
+}

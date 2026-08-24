@@ -790,8 +790,8 @@ document.getElementById("addHoleBtn").onclick=()=>addHole(emptyHole());
 function loadDefaultBlast(){
   // Exemplos reais extraídos da base processada a partir dos Excels e do relatório PDF.
   document.getElementById("blastName").value = "Exemplos da base";
-  document.getElementById("kPreset").value = "14.2756";
-  document.getElementById("kValue").value = "14.2756";
+  document.getElementById("kPreset").value = "10.1136915936";
+  document.getElementById("kValue").value = "10.1136915936";
   document.getElementById("angleValue").value = "45";
   document.getElementById("peopleFactor").value = "4.6666666667";
   document.getElementById("equipmentFactor").value = "2";
