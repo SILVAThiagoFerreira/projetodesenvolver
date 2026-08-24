@@ -110,14 +110,32 @@ button:disabled { border-color: var(--border); background: #E9ECEC; color: #9A9A
 .metric-card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(77, 77, 77, .13); }
 .metric-card::before { content: ""; position: absolute; inset: 0 0 auto; height: 4px; background: var(--accent); }
 .metric-card--neutral::before { background: var(--vale-gray); }
-.metric-card--warning { background: #FFFCF0; border-color: #E5D37A; }
-.metric-card--warning::before { height: 5px; background: var(--vale-yellow); }
+.metric-card--warning {
+  isolation: isolate;
+  background: linear-gradient(138deg, #FFFDF5 0%, #FFF8D9 100%);
+  border-color: #D9BC4E;
+  box-shadow: 0 12px 28px rgba(146, 108, 0, .12), inset 0 0 0 1px rgba(255,255,255,.72);
+}
+.metric-card--warning::before { height: 6px; background: linear-gradient(90deg, #E2B51D 0%, #F4D45E 100%); }
+.metric-card--warning::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: -34px;
+  bottom: -48px;
+  width: 132px;
+  height: 132px;
+  border: 1px solid rgba(205, 164, 24, .24);
+  border-radius: 50%;
+  box-shadow: 0 0 0 12px rgba(205, 164, 24, .07), 0 0 0 24px rgba(205, 164, 24, .045);
+}
 .metric-card--equipment::before { background: var(--vale-turquoise); }
 .metric-label { color: var(--muted); letter-spacing: .1em; }
+.metric-card--warning .metric-label { color: #806817; letter-spacing: .14em; }
 .metric-card strong { display: block; margin-top: 7px; color: var(--ink); font-size: clamp(27px, 3vw, 36px); line-height: 1; font-weight: 780; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
 .metric-card--primary strong, .metric-card--equipment strong { color: var(--accent-deep); }
-.metric-card--warning strong { color: var(--vale-gray); }
-.metric-unit { margin-top: 5px; color: var(--muted); font-size: 12px; }
+.metric-card--warning strong { color: #3B4145; font-size: clamp(31px, 3.4vw, 42px); letter-spacing: -.055em; }
+.metric-card--warning .metric-unit { margin-top: 8px; color: #806817; font-size: 11px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
 
 .equation-strip { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(180px, .58fr) minmax(0, 1.62fr); gap: 13px; }
 .equation-strip > div { min-height: 82px; padding: 15px 17px; }
