@@ -4,7 +4,7 @@ Sistema local e web para análise de dados de perfuração e desmonte, calibraç
 
 ## Objetivo técnico
 
-O projeto normaliza planos de fogo e monitoramento, une as bases por `Desmonte` e `ID Furo`, valida inconsistências, calcula atributos de engenharia, calibra a constante `K`, calcula `Lmax`, simula cenários calibrados de 700 m para pessoas e 300 m para equipamentos e gera saídas auditáveis.
+O projeto normaliza planos de fogo e monitoramento, une as bases por `Desmonte` e `ID Furo`, valida inconsistências, calcula atributos de engenharia, calibra a constante `K`, calcula `Lmax` e gera raios auditáveis. O padrão operacional usa o maior alcance observado na base, com fatores 4 para pessoas e 2 para equipamentos, conforme o estudo guiado da Vale.
 
 O sistema é ferramenta de análise e apoio à decisão. Não substitui a responsabilidade técnica de engenheiros habilitados.
 
@@ -50,7 +50,7 @@ Edite `configs/default.yaml` ou selecione outro YAML na interface. Os parâmetro
 - `K_evento`: constante calibrada por evento histórico.
 - `K_global`: constante consolidada por média, mediana, percentil, média aparada ou mínimos quadrados.
 - `Lmax previsto`: distância horizontal estimada pelo modelo Terrock.
-- `raio pessoas`: `Lmax referência * fator de segurança para pessoas`.
+- `raio pessoas`: `Lmax referência * fator de segurança para pessoas` (padrão: maior alcance observado × 4).
 - `raio equipamentos`: `Lmax referência * fator de segurança para equipamentos`.
 - Simulação inversa: estima tampão e carga necessários para atingir limites de `Lmax` derivados de raios-alvo.
 

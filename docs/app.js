@@ -793,10 +793,10 @@ function loadDefaultBlast(){
   document.getElementById("kPreset").value = "10.1136915936";
   document.getElementById("kValue").value = "10.1136915936";
   document.getElementById("angleValue").value = "45";
-  document.getElementById("peopleFactor").value = "4.6666666667";
+  document.getElementById("peopleFactor").value = "4";
   document.getElementById("equipmentFactor").value = "2";
-  document.getElementById("targetRadius").value = "700";
-  document.getElementById("referenceMode").value = "median";
+  document.getElementById("targetRadius").value = "600";
+  document.getElementById("referenceMode").value = "max";
   holes=[];
   addHole({litologia:"CE",densidade_litologica_g_cm3:3.5,diametro_furo_pol:5.75,profundidade_m:9.6,afastamento_m:2.2,espacamento_m:4.4,tampao_real_m:3.1,carga_maxima_espera_kg:124,massa_desmontada_kt:325.24800000000005,razao_carga:0.3812475403384494});
   addHole({litologia:"HF",densidade_litologica_g_cm3:3.5,diametro_furo_pol:5.75,profundidade_m:9.0,afastamento_m:2.2,espacamento_m:4.4,tampao_real_m:2.9,carga_maxima_espera_kg:120,massa_desmontada_kt:304.9200000000001,razao_carga:0.3935458480913025});

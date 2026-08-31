@@ -16,8 +16,8 @@ model:
   prediction_percentile: 95
 safety:
   equipment_factor: 2
-  people_factor: 4.6666666667
-  target_people_radius_m: [700, 500]
+  people_factor: 4
+  target_people_radius_m: [600, 500]
 outliers:
   method: "iqr"
   iqr_multiplier: 1.5

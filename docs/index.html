@@ -53,13 +53,13 @@
           </label>
           <label>K Terrock<input id="kValue" type="number" value="10.1136915936" min="0.01" step="0.0001"></label>
           <label>Ângulo (graus)<input id="angleValue" type="number" value="45" min="1" max="89" step="1"></label>
-          <label>Fator pessoas<input id="peopleFactor" type="number" value="4.6666666667" min="1" step="0.0001"></label>
+          <label>Fator pessoas<input id="peopleFactor" type="number" value="4" min="1" step="0.0001"></label>
           <label>Fator equipamentos<input id="equipmentFactor" type="number" value="2" min="1" step="0.0001"></label>
-          <label>Raio alvo pessoas (m)<input id="targetRadius" type="number" value="700" min="1" step="10"></label>
+          <label>Raio alvo pessoas (m)<input id="targetRadius" type="number" value="600" min="1" step="10"></label>
           <label>Referência Lmax
             <select id="referenceMode">
+              <option value="max">Máximo previsto (padrão conservador)</option>
               <option value="median">Mediana prevista</option>
-              <option value="max">Máximo previsto</option>
               <option value="p95">P95 previsto</option>
               <option value="p90">P90 previsto</option>
               <option value="mean">Média prevista</option>
@@ -145,6 +145,8 @@
           <span class="metric-unit">m</span>
         </article>
       </div>
+
+      <p class="disclaimer"><strong>Critério padrão:</strong> máximo observado na base, multiplicado por 4 para pessoas e 2 para equipamentos, conforme o estudo guiado da Vale. Na base atual (73 registros; máximo observado de 164,42 m), isso corresponde a <strong>657,68 m para pessoas</strong> e <strong>328,84 m para equipamentos</strong>. Mediana, P90 e P95 permanecem disponíveis para análise comparativa e não substituem a validação do responsável técnico.</p>
 
       <section class="equation-strip">
         <div>

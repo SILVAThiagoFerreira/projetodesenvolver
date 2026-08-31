@@ -7,9 +7,9 @@ from src.simulation.scenarios import calculate_safety_radius
 
 
 def test_safety_radius():
-    row = calculate_safety_radius(150, 2, 14 / 3, "teste")
-    assert math.isclose(row["raio_equipamentos_m"], 300, rel_tol=1e-9)
-    assert math.isclose(row["raio_pessoas_m"], 700, rel_tol=1e-9)
+    row = calculate_safety_radius(164.42, 2, 4, "maximo_observado")
+    assert math.isclose(row["raio_equipamentos_m"], 328.84, rel_tol=1e-9)
+    assert math.isclose(row["raio_pessoas_m"], 657.68, rel_tol=1e-9)
 
 
 def test_inverse_design_targets():

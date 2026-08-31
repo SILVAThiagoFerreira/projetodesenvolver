@@ -1,12 +1,21 @@
 {
   "fonte": "data/raw/Apendice_I_Planos_de_fogo.xlsx + data/raw/Apendice_II_Banco_de_dados_monitoramento.xlsx",
-  "processado_em": "2026-08-24",
+  "processado_em": "2026-08-31",
   "registros_monitoramento": 73,
   "furos_plano": 72,
   "match_percentual": 98.63013698630137,
   "eventos_sem_correspondencia": 1,
   "furos_duplicados": 16,
   "k_global": 10.113691593592616,
+  "seguranca": {
+    "criterio_referencia": "maximo_observado",
+    "maior_distancia_observada_m": 164.42,
+    "fator_equipamentos_vale": 2,
+    "fator_pessoas_vale": 4,
+    "raio_equipamentos_m": 328.84,
+    "raio_pessoas_m": 657.68,
+    "fonte_fatores": "Estudo Guiado - Perfuração e Desmonte.pdf, desafio 3"
+  },
   "k_por_litologia": {
     "CE": 9.960142036046065,
     "HC": 10.17606778540651,
@@ -18,5 +27,5 @@
     "rmse_m": 50.52220128175259,
     "mape_percentual": 65.87094513489728
   },
-  "observacao": "Calibração preserva outliers sinalizados e requer revisão técnica antes de uso operacional."
+  "observacao": "Calibração preserva outliers sinalizados. Para o cerco padrão, a base tem alcance observado máximo de 164,42 m; com os fatores do estudo da Vale, resultam 328,84 m para equipamentos e 657,68 m para pessoas. Requer revisão técnica antes de uso operacional."
 }
