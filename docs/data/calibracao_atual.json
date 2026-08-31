@@ -14,6 +14,8 @@
     "fator_pessoas_vale": 4,
     "raio_equipamentos_m": 328.84,
     "raio_pessoas_m": 657.68,
+    "raio_equipamentos_operacional_m": 300,
+    "raio_pessoas_operacional_m": 700,
     "fonte_fatores": "Estudo Guiado - Perfuração e Desmonte.pdf, desafio 3"
   },
   "k_por_litologia": {

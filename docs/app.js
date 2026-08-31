@@ -4,6 +4,7 @@ let results = [];
 let contour = [];
 let contourGeo = [];
 let currentRadius = NaN;
+let currentEquipmentRadius = NaN;
 let viewBounds = null;
 let isDragging = false;
 let dragStart = null;
@@ -51,6 +52,7 @@ function resolveDxfScale(text,selected){
 function fmt(v,d=2){return Number.isFinite(v)?Number(v).toFixed(d):"-"}
 function percentile(a,p){const x=a.filter(Number.isFinite).sort((u,v)=>u-v); if(!x.length)return NaN; const i=(x.length-1)*p, lo=Math.floor(i), hi=Math.ceil(i); return x[lo]+(x[hi]-x[lo])*(i-lo)}
 function mean(a){const x=a.filter(Number.isFinite); return x.length?x.reduce((s,v)=>s+v,0)/x.length:NaN}
+function roundOperationalRadius(v){return Number.isFinite(v)?Math.round(v/100)*100:NaN}
 function terrockLmax(k,cl,ds,angle){
   return (k*k/gravity)*Math.pow(cl/ds,1.3)*Math.pow(Math.sin(angle*Math.PI/180),2);
 }
@@ -58,7 +60,7 @@ function csv(rows){const keys=Object.keys(rows[0]||{}); return [keys.join(";"),.
 function download(name,content,type){const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click()}
 
 function addHole(seed={}){
-  const row = Object.fromEntries(fields.map(([key,,def]) => [key, seed[key] ?? def]));
+  const row = {...Object.fromEntries(fields.map(([key,,def]) => [key, seed[key] ?? def])), ...seed};
   holes.push(row);
   renderHoles();
 }
@@ -113,12 +115,8 @@ function validateAndCompute(h,k,angle){
     r.energia_relativa=r.carga_maxima_espera_kg/r.tampao_real_m;
     r.tampao_efetivo_m=r.tampao_real_m;
     r.indice_confinamento=r.tampao_efetivo_m/r.carga_linear_kg_m;
-    // A malha altera o volume de rocha exposto por furo. Aplicamos um fator
-    // geométrico explícito para que mudanças de afastamento/espaçamento sejam
-    // refletidas na triagem, mantendo a equação Terrock auditável.
-    r.fator_malha=Math.sqrt(r.area_malha_m2/20);
     r.lmax_terrock_m=terrockLmax(k,r.carga_linear_kg_m,r.tampao_efetivo_m,angle);
-    r.lmax_previsto_m=r.lmax_terrock_m*r.fator_malha;
+    r.lmax_previsto_m=r.lmax_terrock_m;
     r.raio_pessoas_m=r.lmax_previsto_m*n(document.getElementById("peopleFactor").value);
     r.raio_equipamentos_m=r.lmax_previsto_m*n(document.getElementById("equipmentFactor").value);
   }
@@ -492,7 +490,7 @@ function drawMap(){
   if(radius>0 && document.getElementById("showRadius").checked){
     ctx.beginPath(); ctx.arc(px(cx),py(cy),radius*s,0,Math.PI*2);
     ctx.fillStyle="rgba(236,184,51,.16)"; ctx.fill(); ctx.strokeStyle="#ECB833"; ctx.lineWidth=2; ctx.setLineDash([8,5]); ctx.stroke(); ctx.setLineDash([]);
-    const eq=n(document.getElementById("equipmentFactor").value), pe=n(document.getElementById("peopleFactor").value), equipmentRadius=radius*(eq/pe);
+    const equipmentRadius=Number.isFinite(currentEquipmentRadius)?currentEquipmentRadius:radius;
     if(Number.isFinite(equipmentRadius)&&equipmentRadius>0){
       ctx.beginPath(); ctx.arc(px(cx),py(cy),equipmentRadius*s,0,Math.PI*2);
       ctx.fillStyle="rgba(0,147,154,.10)"; ctx.fill(); ctx.strokeStyle="#00939A"; ctx.lineWidth=1.5; ctx.stroke();
@@ -639,17 +637,22 @@ function run(silent=false){
   }
   const lmax=valid.map(r=>r.lmax_previsto_m);
   const mode=document.getElementById("referenceMode").value;
-  const ref=lmax.length ? (mode==="median"?percentile(lmax,.5):mode==="p95"?percentile(lmax,.95):mode==="p90"?percentile(lmax,.90):mode==="mean"?mean(lmax):Math.max(...lmax)) : NaN;
-  currentRadius=Number.isFinite(ref) ? ref*people : NaN;
+  const observed=valid.map(r=>n(r.distancia_horizontal_m));
+  const observedMax=observed.filter(Number.isFinite);
+  const ref=lmax.length ? (mode==="median"?percentile(lmax,.5):mode==="p95"?percentile(lmax,.95):mode==="p90"?percentile(lmax,.90):mode==="mean"?mean(lmax):observedMax.length?Math.max(...observedMax):Math.max(...lmax)) : NaN;
+  currentRadius=Number.isFinite(ref) ? roundOperationalRadius(ref*people) : NaN;
+  const equipmentRadius=Number.isFinite(ref) ? roundOperationalRadius(ref*equipment) : NaN;
+  currentEquipmentRadius=equipmentRadius;
   document.getElementById("holeCount").textContent=valid.length;
   document.getElementById("lmaxRef").textContent=`${fmt(ref)} m`;
   document.getElementById("peopleRadius").textContent=`${fmt(currentRadius)} m`;
-  document.getElementById("equipmentRadius").textContent=`${fmt(Number.isFinite(ref)?ref*equipment:NaN)} m`;
+  document.getElementById("equipmentRadius").textContent=`${fmt(equipmentRadius)} m`;
   updateEquationPanel(valid,k,angle,ref,people,equipment,mode);
   const resultKeys=["litologia","coluna_carregada_m","carga_linear_kg_m","massa_desmontada_kt","razao_carga_calculada_kg_t","razao_tampao_profundidade","lmax_previsto_m","raio_equipamentos_m","raio_pessoas_m","validation_status","validation_errors"];
   document.getElementById("resultsTable").innerHTML=table(results,resultKeys);
-  const inverse=inverseRows(valid,k,angle,n(document.getElementById("targetRadius").value),people);
-  document.getElementById("inverseTable").innerHTML=table(inverse,["litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","aumento_tampao_m","cme_necessaria_kg","reducao_cme_pct","alerta"]);
+  const inverseTargets=[600,500];
+  const inverse=inverseRows(valid,k,angle,inverseTargets[0],people);
+  document.getElementById("inverseTable").innerHTML=inverseTargets.map(target=>`<section class="inverse-config"><h4>Configuração para raio de ${target} m para pessoas</h4>${table(inverseRows(valid,k,angle,target,people),["litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","aumento_tampao_m","cme_necessaria_kg","reducao_cme_pct","alerta"])}</section>`).join("");
   renderTechnicalNotes(valid,ref,people,equipment);
   drawMap();
   charts.forEach(c=>c.destroy());
@@ -742,8 +745,7 @@ function kmlCoords(points){
 
 function buildKml(){
   const people=Number.isFinite(currentRadius)?circleLonLat(currentRadius):[];
-  const eqFactor=n(document.getElementById("equipmentFactor").value), peopleFactor=n(document.getElementById("peopleFactor").value);
-  const equipment=Number.isFinite(currentRadius)?circleLonLat(currentRadius*(eqFactor/peopleFactor)):[];
+  const equipment=Number.isFinite(currentEquipmentRadius)?circleLonLat(currentEquipmentRadius):[];
   const poly=contourLonLat();
   return `<?xml version="1.0" encoding="UTF-8"?>
  <kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Zona de Segurança Flyrock</name>
@@ -757,7 +759,7 @@ function buildKml(){
 }
 
 function updateEquationPanel(valid,k,angle,ref,people,equipment,mode){
-  document.getElementById("equationText").textContent="Lmax = Terrock × √(área da malha / 20 m²); R = Lmax_ref × fator";
+  document.getElementById("equationText").textContent="Lmax = (K² / g) × (CL / DS)^1,3 × sen²(θ); R = Lmax_ref × fator";
   if(!valid.length){
     document.getElementById("criticalHole").textContent="-";
     document.getElementById("equationSubstitution").textContent="Preencha pelo menos um furo válido.";
@@ -767,8 +769,8 @@ function updateEquationPanel(valid,k,angle,ref,people,equipment,mode){
   const modeLabel={median:"mediana",max:"máximo",p95:"P95",p90:"P90",mean:"média"}[mode] || mode;
   document.getElementById("criticalHole").textContent=`${critical.litologia || "Desmonte"} · ${fmt(critical.lmax_previsto_m)} m`;
   document.getElementById("equationSubstitution").textContent=
-    `Desmonte (${critical.litologia || "sem litologia"}): Terrock = (${fmt(k,2)}² / ${gravity}) × (${fmt(critical.carga_linear_kg_m,2)} / ${fmt(critical.tampao_efetivo_m,2)})^1,3 × sen²(${fmt(angle,1)}°); fator malha = √(${fmt(critical.area_malha_m2,2)} / 20) = ${fmt(critical.fator_malha,2)}; Lmax = ${fmt(critical.lmax_previsto_m)} m. `+
-    `Referência ${modeLabel}: ${fmt(ref)} m; pessoas = ${fmt(ref)} × ${fmt(people,1)} = ${fmt(ref*people)} m; equipamentos = ${fmt(ref)} × ${fmt(equipment,1)} = ${fmt(ref*equipment)} m.`;
+    `Desmonte (${critical.litologia || "sem litologia"}): Lmax = (${fmt(k,2)}² / ${gravity}) × (${fmt(critical.carga_linear_kg_m,2)} / ${fmt(critical.tampao_efetivo_m,2)})^1,3 × sen²(${fmt(angle,1)}°) = ${fmt(critical.lmax_previsto_m)} m. `+
+    `Referência ${modeLabel}: ${fmt(ref)} m; pessoas = ${fmt(ref)} × ${fmt(people,1)} = ${fmt(ref*people)} m (operacional: ${fmt(roundOperationalRadius(ref*people))} m); equipamentos = ${fmt(ref)} × ${fmt(equipment,1)} = ${fmt(ref*equipment)} m (operacional: ${fmt(roundOperationalRadius(ref*equipment))} m).`;
 }
 
 function renderTechnicalNotes(valid,ref,people,equipment){
@@ -787,7 +789,7 @@ function renderTechnicalNotes(valid,ref,people,equipment){
 }
 
 document.getElementById("addHoleBtn").onclick=()=>addHole(emptyHole());
-function loadDefaultBlast(){
+async function loadDefaultBlast(){
   // Exemplos reais extraídos da base processada a partir dos Excels e do relatório PDF.
   document.getElementById("blastName").value = "Exemplos da base";
   document.getElementById("kPreset").value = "10.1136915936";
@@ -798,9 +800,17 @@ function loadDefaultBlast(){
   document.getElementById("targetRadius").value = "600";
   document.getElementById("referenceMode").value = "max";
   holes=[];
-  addHole({litologia:"CE",densidade_litologica_g_cm3:3.5,diametro_furo_pol:5.75,profundidade_m:9.6,afastamento_m:2.2,espacamento_m:4.4,tampao_real_m:3.1,carga_maxima_espera_kg:124,massa_desmontada_kt:325.24800000000005,razao_carga:0.3812475403384494});
-  addHole({litologia:"HF",densidade_litologica_g_cm3:3.5,diametro_furo_pol:5.75,profundidade_m:9.0,afastamento_m:2.2,espacamento_m:4.4,tampao_real_m:2.9,carga_maxima_espera_kg:120,massa_desmontada_kt:304.9200000000001,razao_carga:0.3935458480913025});
-  addHole({litologia:"HC",densidade_litologica_g_cm3:3.5,diametro_furo_pol:5.75,profundidade_m:10.0,afastamento_m:2.2,espacamento_m:4.4,tampao_real_m:3,carga_maxima_espera_kg:123,massa_desmontada_kt:338.80000000000007,razao_carga:0.3630460448642266});
+  try {
+    const response=await fetch("./data/exemplos_base.json");
+    if(!response.ok) throw new Error(`HTTP ${response.status}`);
+    const baseRows=await response.json();
+    baseRows.forEach(addHole);
+  } catch(error) {
+    console.warn("Não foi possível carregar os exemplos completos da base; usando amostra reduzida.",error);
+    addHole({litologia:"CE",densidade_litologica_g_cm3:3.5,diametro_furo_pol:5.75,profundidade_m:9.6,afastamento_m:2.2,espacamento_m:4.4,tampao_real_m:3.1,carga_maxima_espera_kg:124,massa_desmontada_kt:325.24800000000005,razao_carga:0.3812475403384494});
+    addHole({litologia:"HF",densidade_litologica_g_cm3:3.5,diametro_furo_pol:5.75,profundidade_m:9.0,afastamento_m:2.2,espacamento_m:4.4,tampao_real_m:2.9,carga_maxima_espera_kg:120,massa_desmontada_kt:304.9200000000001,razao_carga:0.3935458480913025});
+    addHole({litologia:"HC",densidade_litologica_g_cm3:3.5,diametro_furo_pol:5.75,profundidade_m:10.0,afastamento_m:2.2,espacamento_m:4.4,tampao_real_m:3,carga_maxima_espera_kg:123,massa_desmontada_kt:338.80000000000007,razao_carga:0.3630460448642266});
+  }
   run(true);
 }
 
