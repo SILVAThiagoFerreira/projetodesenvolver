@@ -650,9 +650,9 @@ function run(silent=false){
   updateEquationPanel(valid,k,angle,ref,people,equipment,mode);
   const resultKeys=["litologia","coluna_carregada_m","carga_linear_kg_m","massa_desmontada_kt","razao_carga_calculada_kg_t","razao_tampao_profundidade","lmax_previsto_m","raio_equipamentos_m","raio_pessoas_m","validation_status","validation_errors"];
   document.getElementById("resultsTable").innerHTML=table(results,resultKeys);
-  const inverseTargets=[600,500];
-  const inverse=inverseRows(valid,k,angle,inverseTargets[0],people);
-  document.getElementById("inverseTable").innerHTML=inverseTargets.map(target=>`<section class="inverse-config"><h4>Configuração para raio de ${target} m para pessoas</h4>${table(inverseRows(valid,k,angle,target,people),["litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","aumento_tampao_m","cme_necessaria_kg","reducao_cme_pct","alerta"])}</section>`).join("");
+  const inverseTargets=[{target:600,title:"-100"},{target:500,title:"-200"}];
+  const inverse=inverseRows(valid,k,angle,inverseTargets[0].target,people);
+  document.getElementById("inverseTable").innerHTML=inverseTargets.map(({target,title})=>`<section class="inverse-config"><h4>Configuração para raio de ${title} m para pessoas</h4>${table(inverseRows(valid,k,angle,target,people),["litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","aumento_tampao_m","cme_necessaria_kg","reducao_cme_pct","alerta"])}</section>`).join("");
   renderTechnicalNotes(valid,ref,people,equipment);
   drawMap();
   charts.forEach(c=>c.destroy());
