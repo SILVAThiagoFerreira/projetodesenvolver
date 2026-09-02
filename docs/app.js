@@ -183,6 +183,28 @@ function inverseRows(valid,k,angle,targetPeople,peopleFactor,targetEquipment,equ
   });
 }
 
+function inverseSummary(rows,targetPeople,targetEquipment){
+  if(!rows.length) return "";
+  const adjusted=rows.filter(r=>r.estado_adequacao==="ajustar");
+  const maxBasePeople=Math.max(...rows.map(r=>r.raio_atual_pessoas_m));
+  const maxBaseEquipment=Math.max(...rows.map(r=>r.raio_atual_equipamentos_m));
+  const maxStem=adjusted.length ? Math.max(...adjusted.map(r=>r.aumento_tampao_m)) : 0;
+  const maxCmeReduction=adjusted.length ? Math.max(...adjusted.map(r=>r.reducao_cme_pct)) : 0;
+  const allowed=rows[0].lmax_permitido_m;
+  const limiting=rows[0].limite_controlador;
+  const status=adjusted.length ? `${adjusted.length} de ${rows.length} furo(s) acima do alvo` : "nenhum furo acima do alvo";
+  return `<div class="inverse-summary">
+    <p class="inverse-summary__lead"><strong>O raio menor é o alvo do cenário, não um novo cálculo da base.</strong> A base apresenta ${fmt(maxBasePeople)} m para pessoas e ${fmt(maxBaseEquipment)} m para equipamentos. Para este alvo, cada furo deve ficar com Lmax ≤ ${fmt(allowed)} m; o limite controlador é ${limiting}.</p>
+    <div class="inverse-summary__metrics">
+      <div><span>Necessidade</span><strong>${status}</strong></div>
+      <div><span>Alvo do cenário</span><strong>${fmt(targetPeople)} m / ${fmt(targetEquipment)} m</strong><small>pessoas / equipamentos</small></div>
+      <div><span>Alternativa A · tampão</span><strong>até +${fmt(maxStem)} m</strong><small>por furo, mantendo a carga linear</small></div>
+      <div><span>Alternativa B · CME</span><strong>até -${fmt(maxCmeReduction)}%</strong><small>por furo, mantendo o tampão</small></div>
+    </div>
+    <p class="inverse-summary__note">As alternativas A e B são opções de triagem, não devem ser somadas automaticamente. As linhas marcadas como “manter” já atendem ao alvo e conservam o plano da base. Consulte a tabela para o valor específico de cada furo.</p>
+  </div>`;
+}
+
 function projectGeoContour(points, zone, hemisphere){
   return points.map(([lon,lat])=>{
     const utm = lonLatToUtm(lon,lat,zone,hemisphere);
@@ -678,7 +700,10 @@ function run(silent=false){
   ];
   const inverse=inverseRows(valid,k,angle,inverseTargets[0].people,people,inverseTargets[0].equipment,equipment);
   const inverseKeys=["litologia","lmax_atual_m","fonte_lmax","estado_adequacao","raio_atual_pessoas_m","raio_atual_equipamentos_m","raio_alvo_pessoas_m","raio_alvo_equipamentos_m","lmax_permitido_m","limite_controlador","tampao_atual_m","tampao_necessario_m","aumento_tampao_m","cme_atual_kg","cme_necessaria_kg","cme_com_tampao_kg","reducao_cme_pct","razao_carga_atual_kg_t","razao_carga_com_cme_kg_t","razao_carga_com_tampao_kg_t","alerta"];
-  document.getElementById("inverseTable").innerHTML=inverseTargets.map(({people:targetPeople,equipment:targetEquipment,title})=>`<section class="inverse-config"><h4>${title}: adequações para pessoas (${fmt(targetPeople)} m) e equipamentos (${fmt(targetEquipment)} m)</h4>${table(inverseRows(valid,k,angle,targetPeople,people,targetEquipment,equipment),inverseKeys)}</section>`).join("");
+  document.getElementById("inverseTable").innerHTML=inverseTargets.map(({people:targetPeople,equipment:targetEquipment,title})=>{
+    const scenarioRows=inverseRows(valid,k,angle,targetPeople,people,targetEquipment,equipment);
+    return `<section class="inverse-config"><h4>${title}: adequações para pessoas (${fmt(targetPeople)} m) e equipamentos (${fmt(targetEquipment)} m)</h4>${inverseSummary(scenarioRows,targetPeople,targetEquipment)}${table(scenarioRows,inverseKeys)}</section>`;
+  }).join("");
   renderTechnicalNotes(valid,ref,people,equipment);
   drawMap();
   charts.forEach(c=>c.destroy());
