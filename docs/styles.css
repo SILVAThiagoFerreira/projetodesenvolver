@@ -166,7 +166,9 @@ button:disabled { border-color: var(--border); background: #E9ECEC; color: #9A9A
 .table-wrap { overflow-x: auto; max-width: 100%; border: 1px solid var(--border-strong); background: var(--surface); }
 table { width: 100%; table-layout: fixed; border-collapse: collapse; background: var(--surface); }
 #holesTable { min-width: 920px; }
-#resultsTable table, #inverseTable table { min-width: 980px; }
+#resultsTable table { min-width: 980px; }
+#inverseTable table { min-width: 2200px; table-layout: auto; }
+#inverseTable th, #inverseTable td { white-space: nowrap; }
 .data-table { font-size: 12px; }
 th, td { padding: 10px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; overflow-wrap: normal; }
 thead th { position: sticky; top: 0; z-index: 2; height: 48px; padding: 10px 7px; background: #EEF7F6; color: var(--accent-deep); white-space: normal; line-height: 1.2; text-align: center; vertical-align: middle; border-bottom-color: var(--border-strong); }

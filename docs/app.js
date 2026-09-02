@@ -108,7 +108,9 @@ function validateAndCompute(h,k,angle){
     r.area_malha_m2=r.afastamento_m*r.espacamento_m;
     r.volume_estimado_m3=r.area_malha_m2*r.profundidade_m;
     r.massa_estimativa_t=r.volume_estimado_m3*r.densidade_litologica_g_cm3;
-    r.massa_desmontada_t=Number.isFinite(r.massa_desmontada_kt) && r.massa_desmontada_kt>0 ? r.massa_desmontada_kt*1000 : r.massa_estimativa_t;
+    // A coluna da base está nomeada como kt, mas os valores são a massa da
+    // malha em toneladas (por exemplo, 325,248 t). Não converter novamente.
+    r.massa_desmontada_t=Number.isFinite(r.massa_desmontada_kt) && r.massa_desmontada_kt>0 ? r.massa_desmontada_kt : r.massa_estimativa_t;
     r.razao_carga_calculada_kg_t=r.carga_maxima_espera_kg/r.massa_desmontada_t;
     r.razao_tampao_profundidade=r.tampao_real_m/r.profundidade_m;
     r.energia_relativa=r.carga_maxima_espera_kg/r.tampao_real_m;
@@ -124,14 +126,18 @@ function validateAndCompute(h,k,angle){
 
 const TABLE_LABELS={
   litologia:"Litologia", coluna_carregada_m:"Coluna (m)", carga_linear_kg_m:"Carga linear (kg/m)",
-  massa_desmontada_kt:"Massa (kg)", razao_carga_calculada_kg_t:"Razão carga (kg/t)",
+  profundidade_m:"Profundidade (m)", tampao_real_m:"Tampão real (m)", carga_maxima_espera_kg:"CME (kg)",
+  massa_desmontada_kt:"Massa (t)", razao_carga:"Razão informada (kg/t)", razao_carga_calculada_kg_t:"Razão calculada (kg/t)",
   razao_tampao_profundidade:"Tampão / prof.", lmax_previsto_m:"Lmax (m)",
   raio_equipamentos_m:"Raio equip. (m)", raio_pessoas_m:"Raio pessoas (m)", raio_alvo_pessoas_m:"Alvo pessoas (m)", raio_alvo_equipamentos_m:"Alvo equip. (m)",
   raio_atual_equipamentos_m:"Raio atual equip. (m)",
   validation_status:"Status", validation_errors:"Erros", lmax_atual_m:"Lmax atual (m)", limite_controlador:"Limite controlador",
   raio_atual_pessoas_m:"Raio atual pessoas (m)", lmax_permitido_m:"Lmax permitido (m)",
+  fonte_lmax:"Fonte Lmax", estado_adequacao:"Estado", tampao_atual_m:"Tampão atual (m)",
   tampao_necessario_m:"Tampão necessário (m)", aumento_tampao_m:"Aumento tampão (m)",
-  cme_necessaria_kg:"CME necessária (kg)", reducao_cme_pct:"Redução CME (%)", alerta:"Alerta"
+  cme_atual_kg:"CME atual (kg)", cme_necessaria_kg:"CME necessária (kg)", cme_com_tampao_kg:"CME com tampão (kg)",
+  reducao_cme_pct:"Redução CME (%)", razao_carga_atual_kg_t:"Razão atual (kg/t)",
+  razao_carga_com_cme_kg_t:"Razão com CME (kg/t)", razao_carga_com_tampao_kg_t:"Razão com tampão (kg/t)", alerta:"Alerta"
 };
 
 function table(rows, keys, limit=100){
@@ -149,17 +155,30 @@ function inverseRows(valid,k,angle,targetPeople,peopleFactor,targetEquipment,equ
   const allowed=Math.min(allowedPeople,allowedEquipment);
   const limiting=allowedPeople<=allowedEquipment?"pessoas":"equipamentos";
   return valid.map(r=>{
-    const ratio=allowed/r.lmax_previsto_m;
-    const tampaoNec=r.tampao_real_m/Math.pow(ratio,1/1.3);
-    const clNec=r.carga_linear_kg_m*Math.pow(ratio,1/1.3);
-    const cargaNec=clNec*r.coluna_carregada_m;
+    const observedLmax=n(r.distancia_horizontal_m);
+    const lmaxAtual=Number.isFinite(observedLmax) && observedLmax>0 ? observedLmax : r.lmax_previsto_m;
+    const fonteLmax=Number.isFinite(observedLmax) && observedLmax>0 ? "observado na base" : "Terrock previsto";
+    const needsAdjustment=lmaxAtual>allowed;
+    const reductionFactor=needsAdjustment ? Math.pow(allowed/lmaxAtual,1/1.3) : 1;
+    const tampaoNec=r.tampao_real_m/reductionFactor;
+    const cargaNec=r.carga_maxima_espera_kg*reductionFactor;
+    const colunaComTampao=Math.max(0,r.profundidade_m-tampaoNec);
+    const cargaComTampao=r.carga_linear_kg_m*colunaComTampao;
+    const massaT=r.massa_desmontada_t;
+    const ratioAtual=r.razao_carga_calculada_kg_t;
+    const ratioComCme=cargaNec/massaT;
+    const ratioComTampao=cargaComTampao/massaT;
+    const alerta=needsAdjustment
+      ? (tampaoNec<r.profundidade_m && cargaNec>0 ? "viavel como triagem" : "requer redesenho tecnico")
+      : "conforme para este alvo";
     return {
-      litologia:r.litologia, lmax_atual_m:r.lmax_previsto_m, raio_atual_pessoas_m:r.raio_pessoas_m, raio_atual_equipamentos_m:r.raio_equipamentos_m,
+      litologia:r.litologia, lmax_atual_m:lmaxAtual, fonte_lmax:fonteLmax, estado_adequacao:needsAdjustment?"ajustar":"manter", raio_atual_pessoas_m:lmaxAtual*peopleFactor, raio_atual_equipamentos_m:lmaxAtual*equipmentFactor,
       raio_alvo_pessoas_m:targetPeople, raio_alvo_equipamentos_m:targetEquipment, lmax_permitido_m:allowed, limite_controlador:limiting, tampao_atual_m:r.tampao_real_m,
       tampao_necessario_m:tampaoNec, aumento_tampao_m:Math.max(0,tampaoNec-r.tampao_real_m),
-      cme_atual_kg:r.carga_maxima_espera_kg, cme_necessaria_kg:cargaNec,
-      reducao_cme_pct:Math.max(0,(1-cargaNec/r.carga_maxima_espera_kg)*100),
-      alerta:tampaoNec<r.profundidade_m && cargaNec>0 ? "viavel como triagem" : "requer redesenho tecnico"
+      cme_atual_kg:r.carga_maxima_espera_kg, cme_necessaria_kg:cargaNec, cme_com_tampao_kg:cargaComTampao,
+      reducao_cme_pct:Math.max(0,(1-cargaNec/r.carga_maxima_espera_kg)*100), razao_carga_atual_kg_t:ratioAtual,
+      razao_carga_com_cme_kg_t:ratioComCme, razao_carga_com_tampao_kg_t:ratioComTampao,
+      alerta
     };
   });
 }
@@ -651,14 +670,14 @@ function run(silent=false){
   document.getElementById("peopleRadius").textContent=`${fmt(currentRadius)} m`;
   document.getElementById("equipmentRadius").textContent=`${fmt(equipmentRadius)} m`;
   updateEquationPanel(valid,k,angle,ref,people,equipment,mode);
-  const resultKeys=["litologia","coluna_carregada_m","carga_linear_kg_m","massa_desmontada_kt","razao_carga_calculada_kg_t","razao_tampao_profundidade","lmax_previsto_m","raio_equipamentos_m","raio_pessoas_m","validation_status","validation_errors"];
+  const resultKeys=["litologia","profundidade_m","tampao_real_m","coluna_carregada_m","carga_maxima_espera_kg","carga_linear_kg_m","massa_desmontada_kt","razao_carga","razao_carga_calculada_kg_t","razao_tampao_profundidade","lmax_previsto_m","raio_equipamentos_m","raio_pessoas_m","validation_status","validation_errors"];
   document.getElementById("resultsTable").innerHTML=table(results,resultKeys);
   const inverseTargets=[
     {people:n(document.getElementById("scenario1PeopleRadius").value),equipment:n(document.getElementById("scenario1EquipmentRadius").value),title:"Cenário 1"},
     {people:n(document.getElementById("scenario2PeopleRadius").value),equipment:n(document.getElementById("scenario2EquipmentRadius").value),title:"Cenário 2"}
   ];
   const inverse=inverseRows(valid,k,angle,inverseTargets[0].people,people,inverseTargets[0].equipment,equipment);
-  const inverseKeys=["litologia","lmax_atual_m","raio_atual_pessoas_m","raio_atual_equipamentos_m","raio_alvo_pessoas_m","raio_alvo_equipamentos_m","lmax_permitido_m","limite_controlador","tampao_necessario_m","aumento_tampao_m","cme_necessaria_kg","reducao_cme_pct","alerta"];
+  const inverseKeys=["litologia","lmax_atual_m","fonte_lmax","estado_adequacao","raio_atual_pessoas_m","raio_atual_equipamentos_m","raio_alvo_pessoas_m","raio_alvo_equipamentos_m","lmax_permitido_m","limite_controlador","tampao_atual_m","tampao_necessario_m","aumento_tampao_m","cme_atual_kg","cme_necessaria_kg","cme_com_tampao_kg","reducao_cme_pct","razao_carga_atual_kg_t","razao_carga_com_cme_kg_t","razao_carga_com_tampao_kg_t","alerta"];
   document.getElementById("inverseTable").innerHTML=inverseTargets.map(({people:targetPeople,equipment:targetEquipment,title})=>`<section class="inverse-config"><h4>${title}: adequações para pessoas (${fmt(targetPeople)} m) e equipamentos (${fmt(targetEquipment)} m)</h4>${table(inverseRows(valid,k,angle,targetPeople,people,targetEquipment,equipment),inverseKeys)}</section>`).join("");
   renderTechnicalNotes(valid,ref,people,equipment);
   drawMap();
@@ -717,7 +736,7 @@ function run(silent=false){
     </section>
     <section class="section">
       <h2>Desenho inverso</h2>
-      ${table(inverse,["litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","cme_necessaria_kg","alerta"])}
+      ${table(inverse,["litologia","lmax_atual_m","fonte_lmax","estado_adequacao","raio_atual_pessoas_m","lmax_permitido_m","tampao_atual_m","tampao_necessario_m","aumento_tampao_m","cme_atual_kg","cme_necessaria_kg","cme_com_tampao_kg","reducao_cme_pct","razao_carga_atual_kg_t","razao_carga_com_cme_kg_t","razao_carga_com_tampao_kg_t","alerta"])}
     </section>
     <div class="notice">O relatório preserva a lógica técnica do modelo e deve ser revisado por profissional habilitado antes de qualquer decisão operacional.</div>
   </div>
