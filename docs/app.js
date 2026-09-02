@@ -52,7 +52,6 @@ function resolveDxfScale(text,selected){
 function fmt(v,d=2){return Number.isFinite(v)?Number(v).toFixed(d):"-"}
 function percentile(a,p){const x=a.filter(Number.isFinite).sort((u,v)=>u-v); if(!x.length)return NaN; const i=(x.length-1)*p, lo=Math.floor(i), hi=Math.ceil(i); return x[lo]+(x[hi]-x[lo])*(i-lo)}
 function mean(a){const x=a.filter(Number.isFinite); return x.length?x.reduce((s,v)=>s+v,0)/x.length:NaN}
-function roundOperationalRadius(v){return Number.isFinite(v)?Math.round(v/100)*100:NaN}
 function terrockLmax(k,cl,ds,angle){
   return (k*k/gravity)*Math.pow(cl/ds,1.3)*Math.pow(Math.sin(angle*Math.PI/180),2);
 }
@@ -127,8 +126,9 @@ const TABLE_LABELS={
   litologia:"Litologia", coluna_carregada_m:"Coluna (m)", carga_linear_kg_m:"Carga linear (kg/m)",
   massa_desmontada_kt:"Massa (kg)", razao_carga_calculada_kg_t:"Razão carga (kg/t)",
   razao_tampao_profundidade:"Tampão / prof.", lmax_previsto_m:"Lmax (m)",
-  raio_equipamentos_m:"Raio equip. (m)", raio_pessoas_m:"Raio pessoas (m)",
-  validation_status:"Status", validation_errors:"Erros", lmax_atual_m:"Lmax atual (m)",
+  raio_equipamentos_m:"Raio equip. (m)", raio_pessoas_m:"Raio pessoas (m)", raio_alvo_pessoas_m:"Alvo pessoas (m)", raio_alvo_equipamentos_m:"Alvo equip. (m)",
+  raio_atual_equipamentos_m:"Raio atual equip. (m)",
+  validation_status:"Status", validation_errors:"Erros", lmax_atual_m:"Lmax atual (m)", limite_controlador:"Limite controlador",
   raio_atual_pessoas_m:"Raio atual pessoas (m)", lmax_permitido_m:"Lmax permitido (m)",
   tampao_necessario_m:"Tampão necessário (m)", aumento_tampao_m:"Aumento tampão (m)",
   cme_necessaria_kg:"CME necessária (kg)", reducao_cme_pct:"Redução CME (%)", alerta:"Alerta"
@@ -143,16 +143,19 @@ function table(rows, keys, limit=100){
   }).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 
-function inverseRows(valid,k,angle,target,peopleFactor){
-  const allowed=target/peopleFactor;
+function inverseRows(valid,k,angle,targetPeople,peopleFactor,targetEquipment,equipmentFactor){
+  const allowedPeople=targetPeople/peopleFactor;
+  const allowedEquipment=targetEquipment/equipmentFactor;
+  const allowed=Math.min(allowedPeople,allowedEquipment);
+  const limiting=allowedPeople<=allowedEquipment?"pessoas":"equipamentos";
   return valid.map(r=>{
     const ratio=allowed/r.lmax_previsto_m;
     const tampaoNec=r.tampao_real_m/Math.pow(ratio,1/1.3);
     const clNec=r.carga_linear_kg_m*Math.pow(ratio,1/1.3);
     const cargaNec=clNec*r.coluna_carregada_m;
     return {
-      litologia:r.litologia, lmax_atual_m:r.lmax_previsto_m, raio_atual_pessoas_m:r.raio_pessoas_m,
-      raio_alvo_pessoas_m:target, lmax_permitido_m:allowed, tampao_atual_m:r.tampao_real_m,
+      litologia:r.litologia, lmax_atual_m:r.lmax_previsto_m, raio_atual_pessoas_m:r.raio_pessoas_m, raio_atual_equipamentos_m:r.raio_equipamentos_m,
+      raio_alvo_pessoas_m:targetPeople, raio_alvo_equipamentos_m:targetEquipment, lmax_permitido_m:allowed, limite_controlador:limiting, tampao_atual_m:r.tampao_real_m,
       tampao_necessario_m:tampaoNec, aumento_tampao_m:Math.max(0,tampaoNec-r.tampao_real_m),
       cme_atual_kg:r.carga_maxima_espera_kg, cme_necessaria_kg:cargaNec,
       reducao_cme_pct:Math.max(0,(1-cargaNec/r.carga_maxima_espera_kg)*100),
@@ -640,8 +643,8 @@ function run(silent=false){
   const observed=valid.map(r=>n(r.distancia_horizontal_m));
   const observedMax=observed.filter(Number.isFinite);
   const ref=lmax.length ? (mode==="median"?percentile(lmax,.5):mode==="p95"?percentile(lmax,.95):mode==="p90"?percentile(lmax,.90):mode==="mean"?mean(lmax):observedMax.length?Math.max(...observedMax):Math.max(...lmax)) : NaN;
-  currentRadius=Number.isFinite(ref) ? roundOperationalRadius(ref*people) : NaN;
-  const equipmentRadius=Number.isFinite(ref) ? roundOperationalRadius(ref*equipment) : NaN;
+  currentRadius=Number.isFinite(ref) ? ref*people : NaN;
+  const equipmentRadius=Number.isFinite(ref) ? ref*equipment : NaN;
   currentEquipmentRadius=equipmentRadius;
   document.getElementById("holeCount").textContent=valid.length;
   document.getElementById("lmaxRef").textContent=`${fmt(ref)} m`;
@@ -650,9 +653,13 @@ function run(silent=false){
   updateEquationPanel(valid,k,angle,ref,people,equipment,mode);
   const resultKeys=["litologia","coluna_carregada_m","carga_linear_kg_m","massa_desmontada_kt","razao_carga_calculada_kg_t","razao_tampao_profundidade","lmax_previsto_m","raio_equipamentos_m","raio_pessoas_m","validation_status","validation_errors"];
   document.getElementById("resultsTable").innerHTML=table(results,resultKeys);
-  const inverseTargets=[{target:600,title:"-100"},{target:500,title:"-200"}];
-  const inverse=inverseRows(valid,k,angle,inverseTargets[0].target,people);
-  document.getElementById("inverseTable").innerHTML=inverseTargets.map(({target,title})=>`<section class="inverse-config"><h4>Configuração para raio de ${title} m para pessoas</h4>${table(inverseRows(valid,k,angle,target,people),["litologia","lmax_atual_m","raio_atual_pessoas_m","lmax_permitido_m","tampao_necessario_m","aumento_tampao_m","cme_necessaria_kg","reducao_cme_pct","alerta"])}</section>`).join("");
+  const inverseTargets=[
+    {people:n(document.getElementById("scenario1PeopleRadius").value),equipment:n(document.getElementById("scenario1EquipmentRadius").value),title:"Cenário 1"},
+    {people:n(document.getElementById("scenario2PeopleRadius").value),equipment:n(document.getElementById("scenario2EquipmentRadius").value),title:"Cenário 2"}
+  ];
+  const inverse=inverseRows(valid,k,angle,inverseTargets[0].people,people,inverseTargets[0].equipment,equipment);
+  const inverseKeys=["litologia","lmax_atual_m","raio_atual_pessoas_m","raio_atual_equipamentos_m","raio_alvo_pessoas_m","raio_alvo_equipamentos_m","lmax_permitido_m","limite_controlador","tampao_necessario_m","aumento_tampao_m","cme_necessaria_kg","reducao_cme_pct","alerta"];
+  document.getElementById("inverseTable").innerHTML=inverseTargets.map(({people:targetPeople,equipment:targetEquipment,title})=>`<section class="inverse-config"><h4>${title}: adequações para pessoas (${fmt(targetPeople)} m) e equipamentos (${fmt(targetEquipment)} m)</h4>${table(inverseRows(valid,k,angle,targetPeople,people,targetEquipment,equipment),inverseKeys)}</section>`).join("");
   renderTechnicalNotes(valid,ref,people,equipment);
   drawMap();
   charts.forEach(c=>c.destroy());
@@ -770,7 +777,7 @@ function updateEquationPanel(valid,k,angle,ref,people,equipment,mode){
   document.getElementById("criticalHole").textContent=`${critical.litologia || "Desmonte"} · ${fmt(critical.lmax_previsto_m)} m`;
   document.getElementById("equationSubstitution").textContent=
     `Desmonte (${critical.litologia || "sem litologia"}): Lmax = (${fmt(k,2)}² / ${gravity}) × (${fmt(critical.carga_linear_kg_m,2)} / ${fmt(critical.tampao_efetivo_m,2)})^1,3 × sen²(${fmt(angle,1)}°) = ${fmt(critical.lmax_previsto_m)} m. `+
-    `Referência ${modeLabel}: ${fmt(ref)} m; pessoas = ${fmt(ref)} × ${fmt(people,1)} = ${fmt(ref*people)} m (operacional: ${fmt(roundOperationalRadius(ref*people))} m); equipamentos = ${fmt(ref)} × ${fmt(equipment,1)} = ${fmt(ref*equipment)} m (operacional: ${fmt(roundOperationalRadius(ref*equipment))} m).`;
+    `Referência ${modeLabel}: ${fmt(ref)} m; pessoas = ${fmt(ref)} × ${fmt(people,1)} = ${fmt(ref*people)} m; equipamentos = ${fmt(ref)} × ${fmt(equipment,1)} = ${fmt(ref*equipment)} m.`;
 }
 
 function renderTechnicalNotes(valid,ref,people,equipment){
@@ -797,7 +804,6 @@ async function loadDefaultBlast(){
   document.getElementById("angleValue").value = "45";
   document.getElementById("peopleFactor").value = "4";
   document.getElementById("equipmentFactor").value = "2";
-  document.getElementById("targetRadius").value = "600";
   document.getElementById("referenceMode").value = "max";
   holes=[];
   try {
@@ -856,7 +862,7 @@ document.getElementById("kValue").addEventListener("input",()=>{
   document.getElementById("kPreset").value = "custom";
   run(true);
 });
-["angleValue","peopleFactor","equipmentFactor","targetRadius","referenceMode"].forEach(id=>document.getElementById(id).addEventListener("input",()=>run(true)));
+["angleValue","peopleFactor","equipmentFactor","scenario1PeopleRadius","scenario1EquipmentRadius","scenario2PeopleRadius","scenario2EquipmentRadius","referenceMode"].forEach(id=>document.getElementById(id).addEventListener("input",()=>run(true)));
 ["dxfUnit"].forEach(id=>document.getElementById(id).addEventListener("input",()=>{
   if(dxfSourceText){
     contour=parseDxf(dxfSourceText,resolveDxfScale(dxfSourceText,document.getElementById("dxfUnit").value));
